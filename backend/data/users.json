@@ -208,6 +208,186 @@
       "createdAt": "2025-12-15T06:00:41.941Z",
       "results": [
         {
+          "id": "9e3de7fd-9758-4ef0-9a22-681ffff05a77",
+          "profile": "RASECI",
+          "scores": {
+            "R": 9,
+            "I": 3,
+            "A": 8,
+            "S": 6,
+            "E": 5,
+            "C": 5
+          },
+          "answers": {},
+          "recommendations": [
+            {
+              "major": "Bağçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Balıqçılıq və balıqçılıq təsərrüfatı işi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İnşaat və yol maşınları",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İpəkçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Meyvəçilik və üzümçülük",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Mədən işi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Milli musiqi alətlərinin istehsalı və təmiri",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Nəqliyyat vasitələrinin təmiri və servisi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Pambıqçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Tərəvəzçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Ümumi əkinçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Yem istehsalı və otlaqçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Bina və qurğuların memarlığı",
+              "code": [
+                "A",
+                "R",
+                "I"
+              ],
+              "score": 1.6666666666666667
+            },
+            {
+              "major": "Memarlıq nəzəriyyəsi və tarixi, abidələrin bərpası və rekonstruksiyası",
+              "code": [
+                "A",
+                "I",
+                "R"
+              ],
+              "score": 1.6666666666666665
+            },
+            {
+              "major": "Rekreasiya, idman və sağlamlıq turizmi",
+              "code": [
+                "S",
+                "E",
+                "R"
+              ],
+              "score": 1.5833333333333333
+            },
+            {
+              "major": "Baytarlıq elmləri (konkret sahə göstərilməklə: heyvan xəstəliklərinin diaqnostikası və terapiyası, heyvanların patologiyası və morfologiyası; baytarlıq mikrobiologiyası, virusologiyası, epizootologiyası, mikotoksikologiya ilə mikologiyası və immunologiyası; baytarlıq farmakologiyası və toksikologiya; baytarlıq cərrahlığı; baytarlıq mamalığı və heyvandarlıq məhsullarının biotexnikası; baytarlıq sanitariyası, zoogigiyena və baytarlıq - sanitar ekspertizası və s.)",
+              "code": [
+                "I",
+                "R",
+                "S"
+              ],
+              "score": 1.5
+            },
+            {
+              "major": "Geyimlərin modelləşdirilməsi və konstruksiya edilməsi",
+              "code": [
+                "A",
+                "R"
+              ],
+              "score": 1.5
+            },
+            {
+              "major": "Kinooperator sənəti",
+              "code": [
+                "A",
+                "R"
+              ],
+              "score": 1.5
+            },
+            {
+              "major": "Memarlıq",
+              "code": [
+                "A",
+                "R"
+              ],
+              "score": 1.5
+            },
+            {
+              "major": "Qrafika üzrə texnik",
+              "code": [
+                "A",
+                "R"
+              ],
+              "score": 1.5
+            }
+          ],
+          "createdAt": "2026-01-29T09:53:54.881Z"
+        },
+        {
           "id": "be71b7b2-016b-4f19-bdac-f4fd6c2dd665",
           "profile": "SERACI",
           "scores": {
@@ -792,6 +972,399 @@
       "name": "Ayatay",
       "surname": "Kazimli",
       "createdAt": "2025-12-15T09:48:29.482Z",
+      "results": []
+    },
+    {
+      "id": "ebf4953d-7f7d-4ed2-8313-e53470ad12d8",
+      "name": "Aytac",
+      "surname": "Mammadzada",
+      "createdAt": "2026-01-24T17:30:34.922Z",
+      "results": [
+        {
+          "id": "48be6787-bbc1-409d-9b58-901e2ef5b22a",
+          "profile": "CRIEAS",
+          "scores": {
+            "R": 8,
+            "I": 7,
+            "A": 3,
+            "S": 3,
+            "E": 6,
+            "C": 9
+          },
+          "answers": {},
+          "recommendations": [
+            {
+              "major": "Geomatika və geodeziya mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "İnformasiya-ölçmə və idarəetmə sistemləri (sahələr üzrə)",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "İnformasiyanın işlənməsinin və idarəetmənin avtomatlaşdırılmış sistemləri",
+              "code": [
+                "I",
+                "C",
+                "R"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Kimya texnologiyası və mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Metrologiya, standartlaşdırma və sertifikasiya mühəndisliyi",
+              "code": [
+                "I",
+                "C",
+                "R"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Proseslərin avtomatlaşdırılması mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Qida sənayesi, iaşə və ticarət sistemində sanitar gigiyena təhlükəsizliyi",
+              "code": [
+                "R",
+                "I",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Rabitə sistemlərinin idarə olunmasının informasiya hesablama vasitələri",
+              "code": [
+                "I",
+                "C",
+                "R"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Telekommunikasiya və kompüter sistemlərinin informasiya təhlükəsizliyi",
+              "code": [
+                "I",
+                "C",
+                "R"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Təbii mühitə, maddələrə, materiallara və məmulatlara nəzarət cihazları və üsulları",
+              "code": [
+                "R",
+                "I",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Xəritəşünaslıq, geinformatika",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Xəritəşünaslıq, geoinformatika",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Yer quruluşu, torpaq kadastrı və monitorinqi",
+              "code": [
+                "R",
+                "I",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Daşınma proseslərinin idarə edilməsi",
+              "code": [
+                "E",
+                "C",
+                "R"
+              ],
+              "score": 1.75
+            },
+            {
+              "major": "Ekonometriya; iqtisadi statistika",
+              "code": [
+                "I",
+                "C",
+                "E"
+              ],
+              "score": 1.5833333333333333
+            },
+            {
+              "major": "İqtisadi nəzəriyyə",
+              "code": [
+                "I",
+                "E",
+                "C"
+              ],
+              "score": 1.5833333333333333
+            },
+            {
+              "major": "Sistemli analiz, idarəetmə və informasiyanın işlənməsi (sahələr üzrə)",
+              "code": [
+                "I",
+                "C",
+                "E"
+              ],
+              "score": 1.5833333333333333
+            },
+            {
+              "major": "Mətnşünaslıq, mənəvi-mədəni irsə dair qədim əlyazmaların işlənməsi (tərcüməsi, tədqiqi və nəşrə hazırlanması)",
+              "code": [
+                "I",
+                "A",
+                "C"
+              ],
+              "score": 1.5333333333333332
+            },
+            {
+              "major": "Avtomobil yollarının və aerodromların tikintisi və istismarı",
+              "code": [
+                "R",
+                "C"
+              ],
+              "score": 1.5
+            },
+            {
+              "major": "Bina və qurğuların tikintisi və istismarı",
+              "code": [
+                "R",
+                "C"
+              ],
+              "score": 1.5
+            }
+          ],
+          "createdAt": "2026-01-24T17:38:55.853Z"
+        },
+        {
+          "id": "cf3fa125-ab06-470f-afa7-e497ed47140b",
+          "profile": "RIASEC",
+          "scores": {
+            "R": 6,
+            "I": 6,
+            "A": 6,
+            "S": 6,
+            "E": 6,
+            "C": 6
+          },
+          "answers": {},
+          "recommendations": [
+            {
+              "major": "Bağçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Balıqçılıq və balıqçılıq təsərrüfatı işi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İnşaat və yol maşınları",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İpəkçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Meyvəçilik və üzümçülük",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Mədən işi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Milli musiqi alətlərinin istehsalı və təmiri",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Nəqliyyat vasitələrinin təmiri və servisi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Pambıqçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Tərəvəzçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Ümumi əkinçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Yem istehsalı və otlaqçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Bina və qurğuların memarlığı",
+              "code": [
+                "A",
+                "R",
+                "I"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Memarlıq nəzəriyyəsi və tarixi, abidələrin bərpası və rekonstruksiyası",
+              "code": [
+                "A",
+                "I",
+                "R"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Baytarlıq elmləri (konkret sahə göstərilməklə: heyvan xəstəliklərinin diaqnostikası və terapiyası, heyvanların patologiyası və morfologiyası; baytarlıq mikrobiologiyası, virusologiyası, epizootologiyası, mikotoksikologiya ilə mikologiyası və immunologiyası; baytarlıq farmakologiyası və toksikologiya; baytarlıq cərrahlığı; baytarlıq mamalığı və heyvandarlıq məhsullarının biotexnikası; baytarlıq sanitariyası, zoogigiyena və baytarlıq - sanitar ekspertizası və s.)",
+              "code": [
+                "I",
+                "R",
+                "S"
+              ],
+              "score": 1.75
+            },
+            {
+              "major": "Uşaq ürək-damar cərrahiyyəsi",
+              "code": [
+                "I",
+                "S",
+                "R"
+              ],
+              "score": 1.75
+            },
+            {
+              "major": "Geomatika və geodeziya mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.6666666666666667
+            },
+            {
+              "major": "İnformasiya-ölçmə və idarəetmə sistemləri (sahələr üzrə)",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.6666666666666667
+            },
+            {
+              "major": "Kimya texnologiyası və mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.6666666666666667
+            },
+            {
+              "major": "Proseslərin avtomatlaşdırılması mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.6666666666666667
+            }
+          ],
+          "createdAt": "2026-01-24T17:32:46.028Z"
+        }
+      ]
+    },
+    {
+      "id": "e606b918-fed5-447a-911a-1e214a7f2e03",
+      "name": "jalasadli04",
+      "surname": "Account",
+      "createdAt": "2026-02-04T18:45:49.898Z",
       "results": []
     }
   ]

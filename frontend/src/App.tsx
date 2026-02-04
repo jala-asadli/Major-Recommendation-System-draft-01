@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { HomePage } from './components/HomePage';
 import { LoginForm } from './components/LoginForm';
 import { PreviousResults } from './components/PreviousResults';
 import { Quiz } from './components/Quiz';
@@ -17,6 +18,7 @@ const generateAttemptId = () => {
 
 export const App = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [showHomePage, setShowHomePage] = useState(true);
   const [previousResults, setPreviousResults] = useState<StoredResult[]>([]);
   const [result, setResult] = useState<QuizResult | null>(null);
 
@@ -63,7 +65,10 @@ export const App = () => {
 
   return (
     <main className="app-shell">
-      {!user && <LoginForm onSuccess={handleLoginSuccess} />}
+      {!user && showHomePage && <HomePage onRegisterClick={() => setShowHomePage(false)} />}
+      {!user && !showHomePage && (
+        <LoginForm onSuccess={handleLoginSuccess} onNavigateHome={() => setShowHomePage(true)} />
+      )}
       {user && !result && (
         <>
           <PreviousResults

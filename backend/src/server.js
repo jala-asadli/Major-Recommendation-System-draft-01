@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -5,7 +6,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { riasecItems } from './riasecItems.js';
 import { loadMajorsFromWorkbook, getAllMajors, getRecommendations } from './majorService.js';
-import { initUserStore, getOrCreateUser, getUserResults, recordUserResult } from './userStore.js';
+import { initUserStore, getOrCreateUser, getUserById, getUserResults, recordUserResult } from './userStore.js';
+import {
+  initAuthStore,
+  getCredential,
+  saveCredential
+} from './authStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,6 +19,29 @@ const PORT = process.env.PORT || 5001;
 
 loadMajorsFromWorkbook();
 initUserStore();
+initAuthStore();
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const isStrongPassword = (value) => {
+  return (
+    typeof value === 'string' &&
+    value.length >= 8 &&
+    /[A-Z]/.test(value) &&
+    /\d/.test(value) &&
+    /[^A-Za-z0-9]/.test(value)
+  );
+};
+
+const normalizeEmail = (email) => email.toString().trim().toLowerCase();
+
+const toNameParts = (email) => {
+  const [localPart = 'User'] = email.split('@');
+  const normalized = localPart.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  const name = parts[0] || 'User';
+  const surname = parts.slice(1).join(' ') || 'Account';
+  return { name, surname };
+};
 
 const app = express();
 app.use(cors());
@@ -35,12 +64,53 @@ app.get('/api/majors/all', (req, res) => {
 
 app.post('/api/login', (req, res) => {
   try {
-    const { name, surname } = req.body || {};
+    const { name, surname, email, password } = req.body || {};
+    if (email && password) {
+      const normalizedEmail = normalizeEmail(email);
+      const account = getCredential(normalizedEmail);
+      if (!account || account.password !== password) {
+        return res.status(401).json({ error: 'Invalid email or password.' });
+      }
+      const user = getUserById(account.userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User account not found.' });
+      }
+      const results = getUserResults(user.id);
+      return res.json({ user: { id: user.id, name: user.name, surname: user.surname }, results });
+    }
+
     const user = getOrCreateUser(name, surname);
     const results = getUserResults(user.id);
     res.json({ user: { id: user.id, name: user.name, surname: user.surname }, results });
   } catch (err) {
     res.status(400).json({ error: err.message || 'Unable to login' });
+  }
+});
+
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string' || !isValidEmail(email)) {
+      return res.status(400).json({ error: 'Valid email and password are required.' });
+    }
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        error: 'Password must be at least 8 characters and include uppercase, number, and special character.'
+      });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    if (getCredential(normalizedEmail)) {
+      return res.status(409).json({ error: 'This email is already registered.' });
+    }
+
+    const { name, surname } = toNameParts(normalizedEmail);
+    const user = getOrCreateUser(name, surname);
+    saveCredential(normalizedEmail, { userId: user.id, password });
+    const results = getUserResults(user.id);
+    res.json({ ok: true, user: { id: user.id, name: user.name, surname: user.surname }, results });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Unable to register' });
   }
 });
 
