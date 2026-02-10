@@ -1,43 +1,9 @@
-import { useState } from 'react';
-
 interface HomePageProps {
   onRegisterClick: () => void;
 }
 
-const teamMembers = [
-  {
-    key: 'jala',
-    initials: 'JƏ',
-    name: 'Jala Əsədli',
-    role: 'Product & Design',
-    image: '/src/assets/team/jala.JPG'
-  },
-  {
-    key: 'ayatay',
-    initials: 'AK',
-    name: 'Ayatay Kazımlı',
-    role: 'Data / Analysis',
-    image: '/src/assets/team/ayatay.PNG'
-  },
-  {
-    key: 'nigar',
-    initials: 'NN',
-    name: 'Nigar Nazarli',
-    role: 'Backend / Logic',
-    image: '/src/assets/team/nigar.PNG'
-  },
-  {
-    key: 'togrul',
-    initials: 'TM',
-    name: 'Toğrul Məmmədli',
-    role: 'Frontend / UI',
-    image: '/src/assets/team/togrul.JPG'
-  }
-];
-
 export const HomePage = (_props: HomePageProps) => {
   const { onRegisterClick } = _props;
-  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
   return (
     <section className="home-page-shell home">
@@ -57,9 +23,6 @@ export const HomePage = (_props: HomePageProps) => {
               </li>
               <li>
                 <a href="#about">Necə işləyir?</a>
-              </li>
-              <li>
-                <a href="#team">Haqqımızda</a>
               </li>
               <li>
                 <a href="#mission">Missiyamız</a>
@@ -165,34 +128,6 @@ export const HomePage = (_props: HomePageProps) => {
             </div>
           </div>
 
-          <div id="team">
-            <div className="home-section-content">
-              <h2>Haqqımızda</h2>
-              <p>Komanda Üzvləri</p>
-              <div className="home-team-grid">
-                {teamMembers.map((member) => (
-                  <article key={member.key} className="home-team-card">
-                    <div className="home-team-avatar" aria-hidden="true">
-                      {!brokenImages[member.key] ? (
-                        <img
-                          src={member.image}
-                          alt=""
-                          onError={() => {
-                            setBrokenImages((prev) => ({ ...prev, [member.key]: true }));
-                          }}
-                        />
-                      ) : (
-                        <span>{member.initials}</span>
-                      )}
-                    </div>
-                    <h3>{member.name}</h3>
-                    <p>{member.role}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </div>
-
           <div id="mission" className="home-mission-block">
             <div className="home-section-content">
               <h2>Missiyamız</h2>
@@ -225,9 +160,6 @@ export const HomePage = (_props: HomePageProps) => {
                   </li>
                   <li>
                     <a href="#about">Necə işləyir?</a>
-                  </li>
-                  <li>
-                    <a href="#team">Komanda</a>
                   </li>
                   <li>
                     <a href="#mission">Missiyamız</a>
