@@ -46,10 +46,13 @@ export function getCredential(email) {
 }
 
 export function saveCredential(email, payload) {
+  const existing = cache.credentials[email] || {};
   cache.credentials[email] = {
     userId: payload.userId,
-    password: payload.password,
-    verifiedAt: payload.verifiedAt || new Date().toISOString()
+    password: typeof payload.password === 'string' ? payload.password : existing.password || '',
+    provider: payload.provider || existing.provider || 'local',
+    googleSub: payload.googleSub || existing.googleSub || null,
+    verifiedAt: payload.verifiedAt || existing.verifiedAt || new Date().toISOString()
   };
   persistStore();
   return cache.credentials[email];

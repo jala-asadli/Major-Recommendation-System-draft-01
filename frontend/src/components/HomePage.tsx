@@ -1,79 +1,22 @@
+import { Link } from 'react-router-dom';
+import type { UserProfile } from '../types';
+
 interface HomePageProps {
-  onRegisterClick: () => void;
+  user?: UserProfile | null;
 }
 
-export const HomePage = (_props: HomePageProps) => {
-  const { onRegisterClick } = _props;
-
+export const HomePage = ({ user = null }: HomePageProps) => {
   return (
     <section className="home-page-shell home">
-      <header className="home-topbar">
-        <div className="home-container">
-          <div className="home-brand">
-            <span>ixtisasly</span>
-            <div className="home-brand-mark" aria-hidden="true">
-              ✎
-            </div>
-          </div>
-
-          <nav>
-            <ul className="home-nav-list">
-              <li>
-                <a href="#esas-sehife">Əsas Səhifə</a>
-              </li>
-              <li>
-                <a href="#about">Necə işləyir?</a>
-              </li>
-              <li>
-                <a href="#mission">Missiyamız</a>
-              </li>
-              <li>
-                <a href="#contact">Əlaqə</a>
-              </li>
-            </ul>
-          </nav>
-
-          <div className="home-nav-actions">
-            <a
-              href="/login"
-              className="home-register-nav-button"
-              onClick={(event) => {
-                event.preventDefault();
-                onRegisterClick();
-              }}
-            >
-              Qeydiyyatdan keç
-            </a>
-            <a
-              href="/login"
-              className="home-login-button"
-              onClick={(event) => {
-                event.preventDefault();
-                onRegisterClick();
-              }}
-            >
-              Daxil ol
-            </a>
-          </div>
-        </div>
-      </header>
-
       <div className="home-container">
         <section className="home-hero" id="esas-sehife">
           <div className="home-section-content">
             <h1>Sənin üçün ən uyğun ixtisası kəşf et</h1>
             <p>Şəkillərə əsaslanan əyləncəli ixtisas testi.</p>
             <div className="home-hero-actions">
-              <a
-                href="/login"
-                className="home-register-button"
-                onClick={(event) => {
-                  event.preventDefault();
-                  onRegisterClick();
-                }}
-              >
-                Qeydiyyatdan keç
-              </a>
+              <Link to={user ? '/test' : '/register'} className="home-register-button">
+                {user ? 'Testə başla' : 'Qeydiyyatdan keç'}
+              </Link>
               <a href="#about" className="home-secondary-button">
                 Necə işləyir?
               </a>
@@ -170,28 +113,16 @@ export const HomePage = (_props: HomePageProps) => {
               <section className="home-contact-col">
                 <h3>Keçidlər</h3>
                 <ul>
-                  <li>
-                    <a
-                      href="/login"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        onRegisterClick();
-                      }}
-                    >
-                      Qeydiyyatdan keç
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/login"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        onRegisterClick();
-                      }}
-                    >
-                      Daxil ol
-                    </a>
-                  </li>
+                  {!user && (
+                    <>
+                      <li>
+                        <Link to="/register">Qeydiyyatdan keç</Link>
+                      </li>
+                      <li>
+                        <Link to="/login">Daxil ol</Link>
+                      </li>
+                    </>
+                  )}
                   <li>
                     <a href="#about">Necə işləyir?</a>
                   </li>

@@ -3,8 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 // 36 fully-defined quiz items derived from the required RIASEC code matrix.
-// Image filenames follow the convention item-XX-opt-Y.<ext> found in assets/images
-// where <ext> is jpg or png depending on the source artwork.
+// Image filenames are stored in assets/images as image-<CODE>.<ext>
+// where CODE is the 2-letter option code (e.g. SR -> image-SR.jpg).
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,11 +71,17 @@ const findImageWithExtension = (baseName) => {
   return `/images/${baseName}.jpg`;
 };
 
-const formatImagePath = (item, optionIndex) => {
-  const paddedItem = String(item).padStart(2, '0');
-  const humanOption = optionIndex + 1;
-  const baseName = `item-${paddedItem}-opt-${humanOption}`;
-  return findImageWithExtension(baseName);
+const formatImagePathForCode = (code) => {
+  const normalizedCode = String(code || '').trim().toUpperCase();
+  const codeBaseName = `image-${normalizedCode}`;
+  const codeImagePath = findImageWithExtension(codeBaseName);
+
+  // Keep backward compatibility with previous naming.
+  if (existsSync(path.join(IMAGES_DIR, `${codeBaseName}.jpg`)) || existsSync(path.join(IMAGES_DIR, `${codeBaseName}.png`))) {
+    return codeImagePath;
+  }
+
+  return '/images/image-SR.jpg';
 };
 
 export const riasecItems = RIASEC_ITEMS.map((entry, idx) => {
@@ -83,7 +89,7 @@ export const riasecItems = RIASEC_ITEMS.map((entry, idx) => {
   const options = entry.codes.map((code, optionIdx) => {
     return {
       id: getOptionId(entry.item, optionIdx),
-      imageUrl: formatImagePath(entry.item, optionIdx),
+      imageUrl: formatImagePathForCode(code),
       code,
       description: `Highlights the ${code} strengths`
     };
