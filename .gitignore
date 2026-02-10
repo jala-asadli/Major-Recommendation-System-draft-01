@@ -1,12 +1,16 @@
+# env files (secrets)
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
-backend/.env
-frontend/.env
 
+# runtime data (may contain users/tokens)
 backend/data/auth.json
 
+# dependencies & build output
 node_modules/
-backend/node_modules/
-frontend/node_modules/
+**/node_modules/
+dist/
+**/dist/
 frontend/dist/
