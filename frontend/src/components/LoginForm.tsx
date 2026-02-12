@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
+import { Footer } from './Footer';
 import type { StoredResult, UserProfile } from '../types';
 
 interface LoginFormProps {
-  onSuccess: (payload: { user: UserProfile; results: StoredResult[] }) => void;
+  onSuccess: (payload: {
+    user: UserProfile;
+    results: StoredResult[];
+    profile?: { username: string; birthDate: string; gender: string; email: string };
+  }) => void;
   onNavigateHome?: () => void;
 }
 
@@ -13,6 +19,7 @@ const GOOGLE_SCRIPT_ID = 'google-identity-service';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
+const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
 const parseEmailHistory = () => {
   try {
@@ -27,6 +34,13 @@ const parseEmailHistory = () => {
 };
 
 export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
+  const handleNavigateHome = () => {
+    if (onNavigateHome) {
+      onNavigateHome();
+      return;
+    }
+    navigate('/');
+  };
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
@@ -46,23 +60,36 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
   const [showEmailOptions, setShowEmailOptions] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const googleInitialized = useRef(false);
+  const emailInputWrapRef = useRef<HTMLLabelElement | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isSignInMode = location.pathname === '/login';
   const isVerificationStep = !isSignInMode && Boolean(pendingVerificationEmail);
+  const isRegisterMode = !isSignInMode && !isVerificationStep;
   const emailSuggestions = useMemo(() => {
     const normalized = normalizeEmail(email);
     return savedEmails
       .filter((entry) => (normalized ? entry.includes(normalized) : true))
-      .slice(0, 6);
+      .slice(0, 10);
   }, [email, savedEmails]);
 
-  const goHomeTo = (hash: string) => {
-    if (hash) {
-      window.location.hash = hash;
-    }
-    onNavigateHome?.();
-  };
+  useEffect(() => {
+    if (!showEmailOptions) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emailInputWrapRef.current?.contains(event.target as Node)) return;
+      setShowEmailOptions(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEmailOptions]);
+
+  useEffect(() => {
+    // Prevent sensitive values from carrying over between auth routes.
+    setPassword('');
+    setConfirmPassword('');
+    setVerificationCode('');
+    setShowPasswords(false);
+  }, [location.pathname]);
 
   const resetMessages = () => {
     setError('');
@@ -85,15 +112,27 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
   };
 
   const completeAuth = (payload: unknown) => {
-    const responsePayload = payload as { user?: UserProfile; results?: StoredResult[]; email?: string };
+    const responsePayload = payload as {
+      user?: UserProfile;
+      results?: StoredResult[];
+      email?: string;
+      profile?: { username?: string; birthDate?: string; gender?: string; email?: string };
+    };
     if (responsePayload?.email) {
       rememberEmail(responsePayload.email);
     } else {
       rememberEmail(email);
     }
+    const normalizedEmail = responsePayload?.email || responsePayload?.profile?.email || email;
     onSuccess({
       user: responsePayload.user as UserProfile,
-      results: Array.isArray(responsePayload.results) ? responsePayload.results : []
+      results: Array.isArray(responsePayload.results) ? responsePayload.results : [],
+      profile: {
+        username: responsePayload?.profile?.username?.trim() || username.trim(),
+        birthDate: responsePayload?.profile?.birthDate || birthDate,
+        gender: responsePayload?.profile?.gender || gender,
+        email: normalizeEmail(normalizedEmail)
+      }
     });
   };
 
@@ -126,13 +165,7 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
               throw new Error(payload?.error || 'Google ilə daxil olmaq mümkün olmadı.');
             }
             const payload = await authResponse.json();
-            if (payload?.email) {
-              rememberEmail(payload.email);
-            }
-            onSuccess({
-              user: payload.user,
-              results: Array.isArray(payload.results) ? payload.results : []
-            });
+            completeAuth(payload);
           } catch (err) {
             setError(err instanceof Error ? err.message : 'Google ilə daxil olmaq mümkün olmadı.');
           } finally {
@@ -198,6 +231,9 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
     if (!acceptedRobotCheck) {
       setError('Zəhmət olmasa doğrulama üçün checkbox-u seçin.');
       return;
+    }
+    if (looksLikeEmail(email)) {
+      rememberEmail(email);
     }
 
     try {
@@ -299,6 +335,9 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
       setError('Email və şifrə daxil edin.');
       return;
     }
+    if (looksLikeEmail(email)) {
+      rememberEmail(email);
+    }
 
     try {
       setLoading(true);
@@ -324,16 +363,20 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
   };
 
   return (
-    <section className="auth-page-shell">
-      <div className="home-container auth-content-grid">
+    <section className={`auth-page-shell ${isRegisterMode ? 'auth-page-shell-register' : ''}`}>
+      <div className="auth-shape auth-shape-teal" aria-hidden="true" />
+      <div className="auth-shape auth-shape-orange" aria-hidden="true" />
+      <div className="auth-shape auth-shape-ring" aria-hidden="true" />
+
+      <div className={`auth-content-grid auth-main-container ${isRegisterMode ? 'auth-content-grid-register' : ''}`}>
         <section className="auth-card-wrap">
-          <div className="quiz-card auth-card">
+          <div className={`quiz-card auth-card ${isRegisterMode ? 'auth-card-register' : ''}`}>
             <header>
               <h1>{isSignInMode ? 'Daxil ol' : isVerificationStep ? 'Email Təsdiqi' : 'İndi Qeydiyyatdan Keç'}</h1>
             </header>
 
-            {!isSignInMode && !isVerificationStep && (
-              <form className="login-form" onSubmit={handleRegister}>
+            {isRegisterMode && (
+              <form className="login-form auth-register-form" onSubmit={handleRegister} autoComplete="off">
                 <div className="register-grid">
                   <label className="input-label">
                     <span>Ad</span>
@@ -379,19 +422,27 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
                       <option value="other">Digər</option>
                     </select>
                   </label>
-                  <label className="input-label">
+                  <label className="input-label email-input-wrap" ref={emailInputWrapRef}>
                     <span>Email</span>
                     <input
                       type="email"
                       value={email}
-                      onChange={(event) => setEmail(event.target.value)}
+                      onChange={(event) => {
+                        setEmail(event.target.value);
+                        setShowEmailOptions(true);
+                      }}
                       onFocus={() => setShowEmailOptions(true)}
-                      onBlur={() => window.setTimeout(() => setShowEmailOptions(false), 120)}
-                      autoComplete="email"
+                      autoComplete="off"
+                      spellCheck={false}
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      name="auth-register-email"
                       placeholder="example@email.com"
+                      aria-expanded={showEmailOptions && emailSuggestions.length > 0}
+                      aria-controls="email-suggestions"
                     />
                     {showEmailOptions && emailSuggestions.length > 0 && (
-                      <div className="email-suggestion-list" role="listbox" aria-label="Saved emails">
+                      <div id="email-suggestions" className="email-suggestion-list" role="listbox" aria-label="Saved emails">
                         {emailSuggestions.map((candidate) => (
                           <button
                             key={candidate}
@@ -411,26 +462,43 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
                   </label>
                   <label className="input-label">
                     <span>Şifrə</span>
-                    <input
-                      type={showPasswords ? 'text' : 'password'}
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      placeholder="********"
-                    />
+                    <div className="password-field-wrap">
+                      <input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="********"
+                      />
+                      <button
+                        type="button"
+                        className="password-visibility-toggle"
+                        onClick={() => setShowPasswords((prev) => !prev)}
+                        aria-label={showPasswords ? 'Şifrəni gizlət' : 'Şifrəni göstər'}
+                      >
+                        {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </label>
                   <label className="input-label">
                     <span>Şifrənin təkrarı</span>
-                    <input
-                      type={showPasswords ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                      placeholder="********"
-                    />
+                    <div className="password-field-wrap">
+                      <input
+                        type={showPasswords ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(event) => setConfirmPassword(event.target.value)}
+                        placeholder="********"
+                      />
+                      <button
+                        type="button"
+                        className="password-visibility-toggle"
+                        onClick={() => setShowPasswords((prev) => !prev)}
+                        aria-label={showPasswords ? 'Şifrəni gizlət' : 'Şifrəni göstər'}
+                      >
+                        {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </label>
                 </div>
-                <button type="button" className="auth-google-button" onClick={() => setShowPasswords((prev) => !prev)}>
-                  {showPasswords ? 'Şifrələri gizlət' : 'Şifrələri göstər'}
-                </button>
                 <label className="robot-check-label">
                   <input
                     type="checkbox"
@@ -439,9 +507,6 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
                   />
                   <span>I am not a robot</span>
                 </label>
-                <button type="button" className="auth-google-button" onClick={handleGoogleAuth} disabled={loading}>
-                  Google ilə qeydiyyatdan keç
-                </button>
                 {info && <p className="info-text">{info}</p>}
                 {error && <p className="error-text">{error}</p>}
                 <button type="submit" className="primary-button" disabled={loading}>
@@ -504,46 +569,46 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
             )}
 
             {isSignInMode && (
-              <form className="login-form" onSubmit={handleSignIn}>
-                <label className="input-label">
+              <form className="login-form" onSubmit={handleSignIn} autoComplete="off">
+                <label className="input-label email-input-wrap" ref={emailInputWrapRef}>
                   <span>Email</span>
                   <input
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    onFocus={() => setShowEmailOptions(true)}
-                    onBlur={() => window.setTimeout(() => setShowEmailOptions(false), 120)}
-                    autoComplete="email"
+                    autoComplete="off"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    name="auth-login-email"
                     placeholder="example@email.com"
                   />
-                  {showEmailOptions && emailSuggestions.length > 0 && (
-                    <div className="email-suggestion-list" role="listbox" aria-label="Saved emails">
-                      {emailSuggestions.map((candidate) => (
-                        <button
-                          key={candidate}
-                          type="button"
-                          className="email-suggestion-item"
-                          onMouseDown={(event) => {
-                            event.preventDefault();
-                            setEmail(candidate);
-                            setShowEmailOptions(false);
-                          }}
-                        >
-                          {candidate}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </label>
                 <label className="input-label">
                   <span>Password</span>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="********"
-                  />
+                  <div className="password-field-wrap">
+                    <input
+                      type={showPasswords ? 'text' : 'password'}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="********"
+                    />
+                    <button
+                      type="button"
+                      className="password-visibility-toggle"
+                      onClick={() => setShowPasswords((prev) => !prev)}
+                      aria-label={showPasswords ? 'Şifrəni gizlət' : 'Şifrəni göstər'}
+                    >
+                      {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </label>
+                <div className="auth-row-inline">
+                  <span />
+                  <Link to="/forgot-password" className="auth-inline-link">
+                    Şifrəni unutmusunuz?
+                  </Link>
+                </div>
                 <button type="button" className="auth-google-button" onClick={handleGoogleAuth} disabled={loading}>
                   Google ilə daxil ol
                 </button>
@@ -571,140 +636,21 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
           </div>
         </section>
 
-        <aside className="auth-info-panel">
-          <div>
-            <h2>İxtisas seçimin üçün ilk addımı at!</h2>
-            <p>Daha doğru seçim üçün daha aydın yol!</p>
-          </div>
-          <div className="home-brand auth-info-logo">
-            <span>ixtisasly</span>
-            <div className="home-brand-mark" aria-hidden="true">
-              ✎
+        {!isRegisterMode && (
+          <aside className="auth-info-panel">
+            <div>
+              <h2>İxtisas seçimin üçün ilk addımı at!</h2>
+              <p>Daha doğru seçim üçün daha aydın yol!</p>
             </div>
-          </div>
-        </aside>
+            <button type="button" className="home-brand auth-info-logo auth-brand-like-home" onClick={handleNavigateHome}>
+              <span>ixtisas</span>
+              <span className="home-modern-brand-dot">.ly</span>
+            </button>
+          </aside>
+        )}
       </div>
 
-      <div className="home-container">
-        <section className="home-info-block">
-          <div id="contact">
-            <div className="home-section-content home-contact-footer">
-              <section className="home-contact-col home-contact-brand-col">
-                <div className="home-brand">
-                  <span>ixtisasly</span>
-                  <div className="home-brand-mark" aria-hidden="true">
-                    ✎
-                  </div>
-                </div>
-              </section>
-
-              <section className="home-contact-col">
-                <h3>Yönləndirmə</h3>
-                <ul>
-                  <li>
-                    <a
-                      href="#"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        goHomeTo('esas-sehife');
-                      }}
-                    >
-                      Əsas Səhifə
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        goHomeTo('about');
-                      }}
-                    >
-                      Necə işləyir?
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        goHomeTo('mission');
-                      }}
-                    >
-                      Missiyamız
-                    </a>
-                  </li>
-                </ul>
-              </section>
-
-              <section className="home-contact-col">
-                <h3>Keçidlər</h3>
-                <ul>
-                  <li>
-                    <Link
-                      to="/register"
-                      onClick={(event) => {
-                        resetMessages();
-                        resetVerificationState();
-                      }}
-                    >
-                      Qeydiyyatdan keç
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/login"
-                      onClick={(event) => {
-                        resetMessages();
-                        resetVerificationState();
-                      }}
-                    >
-                      Daxil ol
-                    </Link>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        goHomeTo('about');
-                      }}
-                    >
-                      Necə işləyir?
-                    </a>
-                  </li>
-                </ul>
-              </section>
-
-              <section className="home-contact-col">
-                <h3>Əlaqə</h3>
-                <ul className="home-contact-list">
-                  <li>
-                    <span className="home-contact-icon" aria-hidden="true">
-                      📍
-                    </span>
-                    <span>Ahmadbey Aghaoglu str. 61 Baku, 1008</span>
-                  </li>
-                  <li>
-                    <span className="home-contact-icon" aria-hidden="true">
-                      ✉
-                    </span>
-                    <span>Email: ixtisasly@edu.az</span>
-                  </li>
-                  <li>
-                    <span className="home-contact-icon" aria-hidden="true">
-                      ☎
-                    </span>
-                    <span>Tel: +994 50 988 31 20</span>
-                  </li>
-                </ul>
-              </section>
-            </div>
-          </div>
-        </section>
-
-        <footer className="home-footer">© 2026 ixtisasly. Bütün hüquqlar qorunur.</footer>
-      </div>
+      <Footer startTestPath="/register" />
     </section>
   );
 };

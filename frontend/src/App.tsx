@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AccountPage } from './components/AccountPage';
 import { HomePage } from './components/HomePage';
 import { LoginForm } from './components/LoginForm';
@@ -8,8 +8,9 @@ import { PreviousResults } from './components/PreviousResults';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute';
 import { Quiz } from './components/Quiz';
+import { ForgotPasswordPage } from './components/ForgotPasswordPage';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { ResultsPage } from './components/ResultsPage';
-import { SettingsPage } from './components/SettingsPage';
 import { buildApiUrl } from './config';
 import type { QuizResultPayload, StoredResult, UserProfile } from './types';
 
@@ -20,6 +21,8 @@ type ProfileSettings = {
   gender: string;
   email: string;
 };
+
+type ProfilePayload = Partial<ProfileSettings>;
 
 const AUTH_USER_STORAGE_KEY = 'riasec.auth.user';
 const PROFILE_SETTINGS_STORAGE_KEY = 'riasec.profile.settings';
@@ -54,6 +57,7 @@ const parseProfileSettings = () => {
 };
 
 export const App = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [previousResults, setPreviousResults] = useState<StoredResult[]>([]);
@@ -118,9 +122,28 @@ export const App = () => {
     localStorage.setItem(PROFILE_SETTINGS_STORAGE_KEY, JSON.stringify(profileSettings));
   }, [profileSettings]);
 
-  const handleLoginSuccess = ({ user: nextUser, results }: { user: UserProfile; results: StoredResult[] }) => {
+  const handleLoginSuccess = ({
+    user: nextUser,
+    results,
+    profile
+  }: {
+    user: UserProfile;
+    results: StoredResult[];
+    profile?: ProfilePayload;
+  }) => {
     setUser(nextUser);
     localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(nextUser));
+    if (profile) {
+      setProfileSettings((prev) => ({
+        ...prev,
+        [nextUser.id]: {
+          username: profile.username?.trim() || prev[nextUser.id]?.username || '',
+          birthDate: profile.birthDate || prev[nextUser.id]?.birthDate || '',
+          gender: profile.gender || prev[nextUser.id]?.gender || '',
+          email: profile.email?.trim() || prev[nextUser.id]?.email || ''
+        }
+      }));
+    }
     setPreviousResults(Array.isArray(results) ? results : []);
     setResult(null);
     navigate('/');
@@ -161,17 +184,47 @@ export const App = () => {
   }, [loadResultsForUser, user?.id]);
 
   const handleSaveSettings = useCallback(
-    (payload: ProfileSettings & { name: string; surname: string }) => {
+    async (payload: ProfileSettings & { name: string; surname: string }) => {
       if (!user) return;
-      setUser((prev) => (prev ? { ...prev, name: payload.name.trim(), surname: payload.surname.trim() } : prev));
-      setProfileSettings((prev) => ({
-        ...prev,
-        [user.id]: {
+
+      const response = await fetch(buildApiUrl(`/api/users/${user.id}/profile`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: payload.name,
+          surname: payload.surname,
           username: payload.username,
           birthDate: payload.birthDate,
           gender: payload.gender,
           email: payload.email
-        }
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to save settings.');
+      }
+
+      const nextUser: UserProfile = {
+        id: user.id,
+        name: data?.user?.name || payload.name.trim(),
+        surname: data?.user?.surname || payload.surname.trim()
+      };
+
+      const nextSettings: ProfileSettings = {
+        username: data?.profile?.username ?? payload.username,
+        birthDate: data?.profile?.birthDate ?? payload.birthDate,
+        gender: data?.profile?.gender ?? payload.gender,
+        email: data?.profile?.email ?? payload.email
+      };
+
+      setUser(nextUser);
+      localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(nextUser));
+      setProfileSettings((prev) => ({
+        ...prev,
+        [user.id]: nextSettings
       }));
       navigate('/account');
     },
@@ -181,13 +234,22 @@ export const App = () => {
   const activeSettings: ProfileSettings = user
     ? profileSettings[user.id] || { username: '', birthDate: '', gender: '', email: '' }
     : { username: '', birthDate: '', gender: '', email: '' };
+  const isHomeRoute = location.pathname === '/';
+  const isAuthRoute =
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/forgot-password' ||
+    location.pathname === '/reset-password';
+  const isAccountRoute = location.pathname === '/account';
+  const shellClassName = isHomeRoute || isAuthRoute || isAccountRoute ? '' : 'app-shell';
+  const mainClassName = `app-main ${isHomeRoute || isAccountRoute ? 'app-main-overlay' : 'app-main-with-navbar-offset'} ${shellClassName}`.trim();
 
   if (!authReady) {
-    return <main className="app-shell" />;
+    return <main className={shellClassName} />;
   }
 
   return (
-    <main className="app-shell">
+    <main className={mainClassName}>
       <Navbar
         isAuthenticated={Boolean(user)}
         avatarSource={user ? (activeSettings.username || activeSettings.email || user.name || user.id) : ''}
@@ -211,6 +273,24 @@ export const App = () => {
           element={
             <PublicOnlyRoute user={user}>
               <LoginForm onSuccess={handleLoginSuccess} onNavigateHome={() => navigate('/')} />
+            </PublicOnlyRoute>
+          }
+        />
+
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicOnlyRoute user={user}>
+              <ForgotPasswordPage />
+            </PublicOnlyRoute>
+          }
+        />
+
+        <Route
+          path="/reset-password"
+          element={
+            <PublicOnlyRoute user={user}>
+              <ResetPasswordPage />
             </PublicOnlyRoute>
           }
         />
@@ -252,18 +332,8 @@ export const App = () => {
               <AccountPage
                 user={user as UserProfile}
                 settings={activeSettings}
-                resultCount={previousResults.length}
-                onOpenSettings={() => navigate('/settings')}
+                onSave={handleSaveSettings}
               />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute user={user}>
-              <SettingsPage user={user as UserProfile} settings={activeSettings} onSave={handleSaveSettings} />
             </ProtectedRoute>
           }
         />

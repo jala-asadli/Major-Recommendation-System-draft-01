@@ -1,21 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { QuestionCard } from './QuestionCard';
 import { buildApiUrl } from '../config';
 import { useRiasecScoring } from '../hooks/useRiasecScoring';
-import type { QuestionOption, QuizQuestion, ScoreRecord, QuizResultPayload } from '../types';
+import type { QuizQuestion, QuizResultPayload } from '../types';
 
 interface QuizProps {
   onComplete: (result: QuizResultPayload) => void;
 }
 
 export const Quiz = ({ onComplete }: QuizProps) => {
+  const AUTO_ADVANCE_DELAY_MS = 380;
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [showDetails, setShowDetails] = useState(false);
   const { scores, addCode, reset, getProfileString } = useRiasecScoring();
+  const autoAdvanceTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -46,8 +48,19 @@ export const Quiz = ({ onComplete }: QuizProps) => {
     return snapshot;
   };
 
-  const handleSelect = (option: QuestionOption) => {
+  const clearAutoAdvance = () => {
+    if (autoAdvanceTimeoutRef.current !== null) {
+      window.clearTimeout(autoAdvanceTimeoutRef.current);
+      autoAdvanceTimeoutRef.current = null;
+    }
+  };
+
+  const commitSelectedAnswer = (optionId: string) => {
     const currentQuestion = questions[currentIndex];
+    const selectedOption = currentQuestion.options.find((option) => option.id === optionId);
+    if (!selectedOption) return;
+
+    const option = selectedOption;
     const updatedScores = addCode(option.code);
     const updatedAnswers = commitAnswer(currentQuestion.id, option.id);
     const isLast = currentIndex + 1 >= questions.length;
@@ -55,11 +68,22 @@ export const Quiz = ({ onComplete }: QuizProps) => {
       const profile = getProfileString(updatedScores);
       onComplete({ profile, scores: updatedScores, answers: updatedAnswers });
     } else {
+      setSelectedOptionId(null);
       setCurrentIndex((prev) => prev + 1);
     }
   };
 
+  const handleOptionSelect = (optionId: string) => {
+    setSelectedOptionId(optionId);
+    clearAutoAdvance();
+    autoAdvanceTimeoutRef.current = window.setTimeout(() => {
+      commitSelectedAnswer(optionId);
+      autoAdvanceTimeoutRef.current = null;
+    }, AUTO_ADVANCE_DELAY_MS);
+  };
+
   const handlePass = () => {
+    clearAutoAdvance();
     const currentQuestion = questions[currentIndex];
     const updatedAnswers = commitAnswer(currentQuestion.id, 'pass');
     const isLast = currentIndex + 1 >= questions.length;
@@ -67,15 +91,24 @@ export const Quiz = ({ onComplete }: QuizProps) => {
       const profile = getProfileString(scores);
       onComplete({ profile, scores, answers: updatedAnswers });
     } else {
+      setSelectedOptionId(null);
       setCurrentIndex((prev) => prev + 1);
     }
   };
 
   const restartQuiz = () => {
+    clearAutoAdvance();
     setCurrentIndex(0);
+    setSelectedOptionId(null);
     setAnswers({});
     reset();
   };
+
+  useEffect(() => {
+    return () => {
+      clearAutoAdvance();
+    };
+  }, []);
 
   const progressPercent = useMemo(() => {
     if (!questions.length) {
@@ -85,7 +118,7 @@ export const Quiz = ({ onComplete }: QuizProps) => {
   }, [currentIndex, questions.length]);
 
   const renderStatusPanel = (message: string, actionLabel?: string, action?: () => void) => (
-    <section className="quiz-shell">
+    <section className="quiz-shell quiz-test-shell">
       <div className="status-panel">
         <p>{message}</p>
         {actionLabel && action && (
@@ -112,11 +145,12 @@ export const Quiz = ({ onComplete }: QuizProps) => {
   const question = questions[currentIndex];
 
   return (
-    <section className="quiz-shell">
-      <div className="quiz-card">
+    <section className="quiz-shell quiz-test-shell">
+      <div className="quiz-card quiz-test-card">
         <div className="progress-banner" aria-live="polite">
           <div className="progress-label">
-            <span>Step {currentIndex + 1} of {questions.length}</span>
+            <span>SUAL {currentIndex + 1} / {questions.length}</span>
+            <span>{progressPercent}%</span>
           </div>
           <div
             className="progress-track"
@@ -129,30 +163,20 @@ export const Quiz = ({ onComplete }: QuizProps) => {
           </div>
         </div>
 
-        <QuestionCard key={question.id} question={question} onSelect={handleSelect} onPass={handlePass} />
+        <QuestionCard key={question.id} question={question} selectedOptionId={selectedOptionId} onSelect={handleOptionSelect} />
 
-        <div className="details-panel">
-          <div className="details-header">
-            <p className="details-copy">Your RIASEC tally updates quietly in the background.</p>
-            <div className="details-actions">
-              <button type="button" className="ghost-button" onClick={restartQuiz}>
-                Restart quiz
-              </button>
-              <button type="button" className="details-toggle" onClick={() => setShowDetails((prev) => !prev)}>
-                {showDetails ? 'Hide details' : 'Show details'}
-              </button>
-            </div>
+        <div className="quiz-test-footer">
+          <div className="quiz-test-footer-slot">
+            <button type="button" className="ghost-button" onClick={restartQuiz}>
+              Yenidən başla
+            </button>
           </div>
-          {showDetails && (
-            <div className="score-grid">
-              {Object.entries(scores).map(([letter, value]) => (
-                <div key={letter} className="score-pill">
-                  <strong>{letter}</strong>
-                  <span>{value}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="quiz-test-footer-slot quiz-test-footer-slot-center" aria-hidden="true" />
+          <div className="quiz-test-footer-slot quiz-test-footer-slot-right">
+            <button type="button" className="quiz-test-skip-link" onClick={handlePass}>
+              Bu sualı keç
+            </button>
+          </div>
         </div>
       </div>
     </section>

@@ -82,6 +82,32 @@ export function getUserResults(userId) {
   return [...(user.results || [])];
 }
 
+export function updateUserProfile(userId, payload) {
+  const user = getUserById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (typeof payload?.name === 'string') {
+    const nextName = normalizeName(payload.name);
+    if (!nextName) {
+      throw new Error('Name is required');
+    }
+    user.name = nextName;
+  }
+
+  if (typeof payload?.surname === 'string') {
+    const nextSurname = normalizeName(payload.surname);
+    if (!nextSurname) {
+      throw new Error('Surname is required');
+    }
+    user.surname = nextSurname;
+  }
+
+  persistStore();
+  return { ...user, results: [...(user.results || [])] };
+}
+
 export function recordUserResult(userId, payload) {
   const user = getUserById(userId);
   if (!user) {
@@ -102,4 +128,8 @@ export function recordUserResult(userId, payload) {
   }
   persistStore();
   return storedResult;
+}
+
+export function getTotalResultsCount() {
+  return cache.users.reduce((total, user) => total + (Array.isArray(user.results) ? user.results.length : 0), 0);
 }

@@ -9,7 +9,8 @@ const DATA_FILE = path.join(DATA_DIR, 'auth.json');
 
 let cache = {
   credentials: {},
-  verifications: {}
+  verifications: {},
+  passwordResets: {}
 };
 
 function ensureStore() {
@@ -26,6 +27,7 @@ function ensureStore() {
     if (parsed && typeof parsed === 'object') {
       cache.credentials = parsed.credentials && typeof parsed.credentials === 'object' ? parsed.credentials : {};
       cache.verifications = parsed.verifications && typeof parsed.verifications === 'object' ? parsed.verifications : {};
+      cache.passwordResets = parsed.passwordResets && typeof parsed.passwordResets === 'object' ? parsed.passwordResets : {};
     }
   } catch (err) {
     console.warn('Unable to load auth store, starting fresh.', err);
@@ -45,13 +47,66 @@ export function getCredential(email) {
   return cache.credentials[email] || null;
 }
 
+export function getCredentialByUserId(userId) {
+  if (!userId) return null;
+  for (const credential of Object.values(cache.credentials)) {
+    if (credential?.userId === userId) {
+      return credential;
+    }
+  }
+  return null;
+}
+
+export function updateCredentialByUserId(userId, payload) {
+  if (!userId || !payload || typeof payload !== 'object') return null;
+
+  let currentEmailKey = null;
+  let currentCredential = null;
+  for (const [emailKey, credential] of Object.entries(cache.credentials)) {
+    if (credential?.userId === userId) {
+      currentEmailKey = emailKey;
+      currentCredential = credential;
+      break;
+    }
+  }
+
+  if (!currentEmailKey || !currentCredential) {
+    return null;
+  }
+
+  const targetEmail =
+    typeof payload.email === 'string' && payload.email.trim()
+      ? payload.email.trim()
+      : currentCredential.email || currentEmailKey;
+
+  const merged = {
+    ...currentCredential,
+    ...payload,
+    email: targetEmail
+  };
+
+  if (targetEmail !== currentEmailKey) {
+    delete cache.credentials[currentEmailKey];
+  }
+  cache.credentials[targetEmail] = merged;
+  persistStore();
+  return cache.credentials[targetEmail];
+}
+
 export function saveCredential(email, payload) {
   const existing = cache.credentials[email] || {};
   cache.credentials[email] = {
     userId: payload.userId,
     password: typeof payload.password === 'string' ? payload.password : existing.password || '',
+    passwordHash: typeof payload.passwordHash === 'string' ? payload.passwordHash : existing.passwordHash || '',
+    passwordSalt: typeof payload.passwordSalt === 'string' ? payload.passwordSalt : existing.passwordSalt || '',
     provider: payload.provider || existing.provider || 'local',
     googleSub: payload.googleSub || existing.googleSub || null,
+    username: typeof payload.username === 'string' ? payload.username : existing.username || '',
+    birthDate: typeof payload.birthDate === 'string' ? payload.birthDate : existing.birthDate || '',
+    gender: typeof payload.gender === 'string' ? payload.gender : existing.gender || '',
+    email: typeof payload.email === 'string' ? payload.email : existing.email || email,
+    passwordUpdatedAt: payload.passwordUpdatedAt || existing.passwordUpdatedAt || null,
     verifiedAt: payload.verifiedAt || existing.verifiedAt || new Date().toISOString()
   };
   persistStore();
@@ -64,9 +119,17 @@ export function getVerification(email) {
 
 export function saveVerification(email, payload) {
   cache.verifications[email] = {
-    password: payload.password,
+    password: payload.password || '',
+    passwordHash: payload.passwordHash || '',
+    passwordSalt: payload.passwordSalt || '',
     codeHash: payload.codeHash,
     expiresAt: payload.expiresAt,
+    firstName: payload.firstName || '',
+    lastName: payload.lastName || '',
+    username: payload.username || '',
+    birthDate: payload.birthDate || '',
+    gender: payload.gender || '',
+    email: payload.email || email,
     attemptCount: payload.attemptCount ?? 0,
     createdAt: payload.createdAt || new Date().toISOString()
   };
@@ -85,6 +148,28 @@ export function incrementVerificationAttempt(email) {
 export function clearVerification(email) {
   if (cache.verifications[email]) {
     delete cache.verifications[email];
+    persistStore();
+  }
+}
+
+export function getPasswordReset(email) {
+  return cache.passwordResets[email] || null;
+}
+
+export function savePasswordReset(email, payload) {
+  cache.passwordResets[email] = {
+    tokenHash: payload.tokenHash,
+    expiresAt: payload.expiresAt,
+    createdAt: payload.createdAt || new Date().toISOString(),
+    usedAt: payload.usedAt || null
+  };
+  persistStore();
+  return cache.passwordResets[email];
+}
+
+export function clearPasswordReset(email) {
+  if (cache.passwordResets[email]) {
+    delete cache.passwordResets[email];
     persistStore();
   }
 }

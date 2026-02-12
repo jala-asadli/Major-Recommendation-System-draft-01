@@ -2,9 +2,737 @@
   "users": [
     {
       "id": "f06cd9f6-7586-4c85-9e42-e3140e93ab8f",
-      "name": "jalasadli04",
-      "surname": "Account",
+      "name": "Jala",
+      "surname": "Asadli",
       "createdAt": "2026-02-10T20:14:21.743Z",
+      "results": [
+        {
+          "id": "a8f28f08-347b-4f94-b4ea-cc81084cf98d",
+          "profile": "RICSAE",
+          "scores": {
+            "R": 8,
+            "I": 7,
+            "A": 4,
+            "S": 6,
+            "E": 4,
+            "C": 7
+          },
+          "answers": {},
+          "recommendations": [
+            {
+              "major": "Bağçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Balıqçılıq və balıqçılıq təsərrüfatı işi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İnşaat və yol maşınları",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İpəkçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Meyvəçilik və üzümçülük",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Mədən işi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Milli musiqi alətlərinin istehsalı və təmiri",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Nəqliyyat vasitələrinin təmiri və servisi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Pambıqçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Tərəvəzçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Ümumi əkinçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Yem istehsalı və otlaqçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Geomatika və geodeziya mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "İnformasiya-ölçmə və idarəetmə sistemləri (sahələr üzrə)",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "İnformasiyanın işlənməsinin və idarəetmənin avtomatlaşdırılmış sistemləri",
+              "code": [
+                "I",
+                "C",
+                "R"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Kimya texnologiyası və mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Metrologiya, standartlaşdırma və sertifikasiya mühəndisliyi",
+              "code": [
+                "I",
+                "C",
+                "R"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Proseslərin avtomatlaşdırılması mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Qida sənayesi, iaşə və ticarət sistemində sanitar gigiyena təhlükəsizliyi",
+              "code": [
+                "R",
+                "I",
+                "C"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Rabitə sistemlərinin idarə olunmasının informasiya hesablama vasitələri",
+              "code": [
+                "I",
+                "C",
+                "R"
+              ],
+              "score": 1.8333333333333333
+            }
+          ],
+          "createdAt": "2026-02-12T14:14:02.703Z"
+        },
+        {
+          "id": "96b1a92f-24e5-425b-9875-88e046f1615d",
+          "profile": "RIASEC",
+          "scores": {
+            "R": 6,
+            "I": 6,
+            "A": 6,
+            "S": 6,
+            "E": 6,
+            "C": 6
+          },
+          "answers": {},
+          "recommendations": [
+            {
+              "major": "Bağçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Balıqçılıq və balıqçılıq təsərrüfatı işi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İnşaat və yol maşınları",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İpəkçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Meyvəçilik və üzümçülük",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Mədən işi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Milli musiqi alətlərinin istehsalı və təmiri",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Nəqliyyat vasitələrinin təmiri və servisi",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Pambıqçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Tərəvəzçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Ümumi əkinçilik",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Yem istehsalı və otlaqçılıq",
+              "code": [
+                "R",
+                "R"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Bina və qurğuların memarlığı",
+              "code": [
+                "A",
+                "R",
+                "I"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Memarlıq nəzəriyyəsi və tarixi, abidələrin bərpası və rekonstruksiyası",
+              "code": [
+                "A",
+                "I",
+                "R"
+              ],
+              "score": 1.8333333333333333
+            },
+            {
+              "major": "Baytarlıq elmləri (konkret sahə göstərilməklə: heyvan xəstəliklərinin diaqnostikası və terapiyası, heyvanların patologiyası və morfologiyası; baytarlıq mikrobiologiyası, virusologiyası, epizootologiyası, mikotoksikologiya ilə mikologiyası və immunologiyası; baytarlıq farmakologiyası və toksikologiya; baytarlıq cərrahlığı; baytarlıq mamalığı və heyvandarlıq məhsullarının biotexnikası; baytarlıq sanitariyası, zoogigiyena və baytarlıq - sanitar ekspertizası və s.)",
+              "code": [
+                "I",
+                "R",
+                "S"
+              ],
+              "score": 1.75
+            },
+            {
+              "major": "Uşaq ürək-damar cərrahiyyəsi",
+              "code": [
+                "I",
+                "S",
+                "R"
+              ],
+              "score": 1.75
+            },
+            {
+              "major": "Geomatika və geodeziya mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.6666666666666667
+            },
+            {
+              "major": "İnformasiya-ölçmə və idarəetmə sistemləri (sahələr üzrə)",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.6666666666666667
+            },
+            {
+              "major": "Kimya texnologiyası və mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.6666666666666667
+            },
+            {
+              "major": "Proseslərin avtomatlaşdırılması mühəndisliyi",
+              "code": [
+                "I",
+                "R",
+                "C"
+              ],
+              "score": 1.6666666666666667
+            }
+          ],
+          "createdAt": "2026-02-12T13:53:01.625Z"
+        },
+        {
+          "id": "bc3c30c9-3f51-45d2-8c75-feaa5b22a3d3",
+          "profile": "ISERAC",
+          "scores": {
+            "R": 5,
+            "I": 8,
+            "A": 5,
+            "S": 8,
+            "E": 6,
+            "C": 4
+          },
+          "answers": {},
+          "recommendations": [
+            {
+              "major": "Analiz və funksional analiz",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Astrofizika və ulduz astronomiyası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Atom və nüvə fizikası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Bərk cismlər fizikası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Biofizika",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Biokimya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Biologiya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Bitki fiziologiyası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Cəbr",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Diferensial tənliklər",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Ehtimal nəzəriyyəsi",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Element-üzvi birləşmələr kimyası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Əczaçılıq kimyası, farmakoqnoziya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Ədədi analiz",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Farmakodinamika",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Fizika",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Genetika",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Günəş fizikası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Hüceyrə biologiyası, sitologiya və histologiya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İmmunologiya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            }
+          ],
+          "createdAt": "2026-02-12T13:51:31.131Z"
+        },
+        {
+          "id": "1402ecee-70b2-4dc7-adc5-f947ce525af0",
+          "profile": "ISERAC",
+          "scores": {
+            "R": 5,
+            "I": 8,
+            "A": 5,
+            "S": 8,
+            "E": 6,
+            "C": 4
+          },
+          "answers": {},
+          "recommendations": [
+            {
+              "major": "Analiz və funksional analiz",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Astrofizika və ulduz astronomiyası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Atom və nüvə fizikası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Bərk cismlər fizikası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Biofizika",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Biokimya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Biologiya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Bitki fiziologiyası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Cəbr",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Diferensial tənliklər",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Ehtimal nəzəriyyəsi",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Element-üzvi birləşmələr kimyası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Əczaçılıq kimyası, farmakoqnoziya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Ədədi analiz",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Farmakodinamika",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Fizika",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Genetika",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Günəş fizikası",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "Hüceyrə biologiyası, sitologiya və histologiya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            },
+            {
+              "major": "İmmunologiya",
+              "code": [
+                "I",
+                "I"
+              ],
+              "score": 2
+            }
+          ],
+          "createdAt": "2026-02-12T13:46:44.899Z"
+        }
+      ]
+    },
+    {
+      "id": "8f4e1998-ef4b-4c2f-9dac-f366184a771b",
+      "name": "nazarlinigar",
+      "surname": "Account",
+      "createdAt": "2026-02-11T17:47:27.394Z",
       "results": []
     }
   ]
