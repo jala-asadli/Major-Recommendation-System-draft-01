@@ -1,14 +1,10 @@
-import { existsSync } from 'fs';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// 36 fully-defined quiz items derived from the required RIASEC code matrix.
-// Image filenames are stored in assets/images as image-<CODE>.<ext>
-// where CODE is the 2-letter option code (e.g. SR -> image-SR.jpg).
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const IMAGES_DIR = path.resolve(__dirname, '../assets/images');
+// 30 quiz items derived from the configured RIASEC category matrix.
+// Image files are auto-discovered from assets/images using pattern:
+// image_<LETTER><NUMBER>.<ext> where LETTER is one of R,I,A,S,E,C.
 
 const PROMPTS = [
   'Which scene looks most energizing to you?',
@@ -19,84 +15,99 @@ const PROMPTS = [
   'Which challenge feels most aligned with you right now?'
 ];
 
-const RIASEC_ITEMS = [
-  { item: 1, codes: ['SR', 'AR', 'IR'] },
-  { item: 2, codes: ['CR', 'RR', 'ER'] },
-  { item: 3, codes: ['AS', 'IS', 'CS'] },
-  { item: 4, codes: ['RS', 'ES', 'SS'] },
-  { item: 5, codes: ['IR', 'CR', 'RR'] },
-  { item: 6, codes: ['ER', 'SR', 'AR'] },
-  { item: 7, codes: ['AS', 'CS', 'ES'] },
-  { item: 8, codes: ['SS', 'IS', 'RS'] },
-  { item: 9, codes: ['SR', 'AR', 'RR'] },
-  { item: 10, codes: ['IR', 'CR', 'ER'] },
-  { item: 11, codes: ['SS', 'AS', 'CS'] },
-  { item: 12, codes: ['IS', 'RS', 'ES'] },
-  { item: 13, codes: ['II', 'SI', 'AI'] },
-  { item: 14, codes: ['EI', 'CI', 'RI'] },
-  { item: 15, codes: ['CE', 'AE', 'IE'] },
-  { item: 16, codes: ['SE', 'RE', 'EE'] },
-  { item: 17, codes: ['RI', 'II', 'CI'] },
-  { item: 18, codes: ['AI', 'EI', 'SI'] },
-  { item: 19, codes: ['EE', 'AE', 'CE'] },
-  { item: 20, codes: ['RE', 'SE', 'IE'] },
-  { item: 21, codes: ['RI', 'SI', 'AI'] },
-  { item: 22, codes: ['EI', 'II', 'CI'] },
-  { item: 23, codes: ['CE', 'SE', 'AE'] },
-  { item: 24, codes: ['EE', 'IE', 'RE'] },
-  { item: 25, codes: ['AA', 'IA', 'SA'] },
-  { item: 26, codes: ['RA', 'EA', 'CA'] },
-  { item: 27, codes: ['IC', 'CC', 'AC'] },
-  { item: 28, codes: ['EC', 'SE', 'RC'] },
-  { item: 29, codes: ['CA', 'RA', 'IA'] },
-  { item: 30, codes: ['SA', 'AA', 'EA'] },
-  { item: 31, codes: ['CC', 'EC', 'AC'] },
-  { item: 32, codes: ['IC', 'RC', 'SC'] },
-  { item: 33, codes: ['AA', 'RA', 'SA'] },
-  { item: 34, codes: ['CA', 'EA', 'IA'] },
-  { item: 35, codes: ['AC', 'CC', 'SC'] },
-  { item: 36, codes: ['RC', 'EC', 'IC'] }
+export const CATEGORY_MATRIX = [
+  ['R', 'I', 'A'],
+  ['S', 'E', 'C'],
+  ['R', 'S', 'E'],
+  ['I', 'A', 'C'],
+  ['R', 'E', 'C'],
+  ['I', 'S', 'A'],
+  ['R', 'A', 'S'],
+  ['I', 'C', 'E'],
+  ['R', 'I', 'C'],
+  ['A', 'S', 'E'],
+  ['R', 'S', 'C'],
+  ['I', 'A', 'E'],
+  ['R', 'A', 'E'],
+  ['I', 'S', 'C'],
+  ['R', 'I', 'S'],
+  ['A', 'E', 'C'],
+  ['R', 'C', 'A'],
+  ['I', 'E', 'S'],
+  ['R', 'E', 'A'],
+  ['I', 'C', 'S'],
+  ['R', 'S', 'A'],
+  ['I', 'E', 'C'],
+  ['R', 'A', 'I'],
+  ['S', 'C', 'E'],
+  ['R', 'C', 'S'],
+  ['I', 'A', 'S'],
+  ['R', 'E', 'I'],
+  ['A', 'C', 'E'],
+  ['R', 'S', 'I'],
+  ['A', 'E', 'C']
 ];
 
-const getOptionId = (item, optionIndex) => `${item}${String.fromCharCode(97 + optionIndex)}`;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const IMAGES_DIR = path.resolve(__dirname, '../assets/images');
 
-const findImageWithExtension = (baseName) => {
-  for (const ext of ['jpg', 'png']) {
-    const diskPath = path.join(IMAGES_DIR, `${baseName}.${ext}`);
-    if (existsSync(diskPath)) {
-      return `/images/${baseName}.${ext}`;
-    }
-  }
-  // Default to jpg path to keep API output predictable even if the file is missing.
-  return `/images/${baseName}.jpg`;
-};
+function buildImagePools() {
+  const pools = { R: [], I: [], A: [], S: [], E: [], C: [] };
+  const files = fs.existsSync(IMAGES_DIR) ? fs.readdirSync(IMAGES_DIR) : [];
 
-const formatImagePathForCode = (code) => {
-  const normalizedCode = String(code || '').trim().toUpperCase();
-  const codeBaseName = `image-${normalizedCode}`;
-  const codeImagePath = findImageWithExtension(codeBaseName);
-
-  // Keep backward compatibility with previous naming.
-  if (existsSync(path.join(IMAGES_DIR, `${codeBaseName}.jpg`)) || existsSync(path.join(IMAGES_DIR, `${codeBaseName}.png`))) {
-    return codeImagePath;
+  for (const filename of files) {
+    const match = /^image_([RIASEC])(\d+)\.(jpg|jpeg|png|webp|avif)$/i.exec(filename);
+    if (!match) continue;
+    const letter = match[1].toUpperCase();
+    const numeric = Number.parseInt(match[2], 10);
+    pools[letter].push({
+      numeric,
+      url: `/images/${filename}`
+    });
   }
 
-  return '/images/image-SR.jpg';
+  for (const letter of Object.keys(pools)) {
+    pools[letter].sort((a, b) => a.numeric - b.numeric);
+    pools[letter] = pools[letter].map((entry) => entry.url);
+  }
+
+  return pools;
+}
+
+const imagePools = buildImagePools();
+const fallbackImageUrl =
+  imagePools.R[0] || imagePools.I[0] || imagePools.A[0] || imagePools.S[0] || imagePools.E[0] || imagePools.C[0] || '';
+
+let imageIndexTracker = {
+  R: 0,
+  I: 0,
+  A: 0,
+  S: 0,
+  E: 0,
+  C: 0
 };
 
-export const riasecItems = RIASEC_ITEMS.map((entry, idx) => {
-  const prompt = `${PROMPTS[idx % PROMPTS.length]} (Item ${entry.item})`;
-  const options = entry.codes.map((code, optionIdx) => {
-    return {
-      id: getOptionId(entry.item, optionIdx),
-      imageUrl: formatImagePathForCode(code),
-      code,
-      description: `Highlights the ${code} strengths`
-    };
-  });
+const getNextImage = (letter) => {
+  const pool = imagePools[letter];
+  if (!pool || pool.length === 0) {
+    return fallbackImageUrl;
+  }
+  const index = imageIndexTracker[letter];
+  imageIndexTracker[letter] += 1;
+  return pool[index % pool.length];
+};
+
+export const riasecItems = CATEGORY_MATRIX.map((letters, idx) => {
+  const itemId = idx + 1;
   return {
-    id: entry.item,
-    prompt,
-    options
+    id: itemId,
+    prompt: `${PROMPTS[idx % PROMPTS.length]} (Item ${itemId})`,
+    options: letters.map((letter, optionIdx) => ({
+      id: `${itemId}${String.fromCharCode(97 + optionIdx)}`,
+      imageUrl: getNextImage(letter),
+      code: letter,
+      description: `Represents ${letter} type`
+    }))
   };
 });

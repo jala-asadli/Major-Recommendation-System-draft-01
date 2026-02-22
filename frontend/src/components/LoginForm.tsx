@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
@@ -20,18 +20,6 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-
-const parseEmailHistory = () => {
-  try {
-    const raw = localStorage.getItem(EMAIL_HISTORY_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((entry): entry is string => typeof entry === 'string').map((entry) => normalizeEmail(entry)).filter(Boolean);
-  } catch {
-    return [];
-  }
-};
 
 export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
   const handleNavigateHome = () => {
@@ -56,32 +44,13 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPasswords, setShowPasswords] = useState(false);
-  const [savedEmails, setSavedEmails] = useState<string[]>(() => parseEmailHistory());
-  const [showEmailOptions, setShowEmailOptions] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const googleInitialized = useRef(false);
-  const emailInputWrapRef = useRef<HTMLLabelElement | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isSignInMode = location.pathname === '/login';
   const isVerificationStep = !isSignInMode && Boolean(pendingVerificationEmail);
   const isRegisterMode = !isSignInMode && !isVerificationStep;
-  const emailSuggestions = useMemo(() => {
-    const normalized = normalizeEmail(email);
-    return savedEmails
-      .filter((entry) => (normalized ? entry.includes(normalized) : true))
-      .slice(0, 10);
-  }, [email, savedEmails]);
-
-  useEffect(() => {
-    if (!showEmailOptions) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (emailInputWrapRef.current?.contains(event.target as Node)) return;
-      setShowEmailOptions(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showEmailOptions]);
 
   useEffect(() => {
     // Prevent sensitive values from carrying over between auth routes.
@@ -104,11 +73,20 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
   const rememberEmail = (value: string) => {
     const normalized = normalizeEmail(value);
     if (!normalized) return;
-    setSavedEmails((previous) => {
-      const next = [normalized, ...previous.filter((entry) => entry !== normalized)].slice(0, 10);
+    try {
+      const raw = localStorage.getItem(EMAIL_HISTORY_STORAGE_KEY);
+      const previous = Array.isArray(raw ? JSON.parse(raw) : null)
+        ? (JSON.parse(raw || '[]') as string[])
+        : [];
+      const clean = previous
+        .filter((entry): entry is string => typeof entry === 'string')
+        .map((entry) => normalizeEmail(entry))
+        .filter(Boolean);
+      const next = [normalized, ...clean.filter((entry) => entry !== normalized)].slice(0, 10);
       localStorage.setItem(EMAIL_HISTORY_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+    } catch {
+      localStorage.setItem(EMAIL_HISTORY_STORAGE_KEY, JSON.stringify([normalized]));
+    }
   };
 
   const completeAuth = (payload: unknown) => {
@@ -422,43 +400,19 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
                       <option value="other">Digər</option>
                     </select>
                   </label>
-                  <label className="input-label email-input-wrap" ref={emailInputWrapRef}>
+                  <label className="input-label">
                     <span>Email</span>
                     <input
                       type="email"
                       value={email}
-                      onChange={(event) => {
-                        setEmail(event.target.value);
-                        setShowEmailOptions(true);
-                      }}
-                      onFocus={() => setShowEmailOptions(true)}
+                      onChange={(event) => setEmail(event.target.value)}
                       autoComplete="off"
                       spellCheck={false}
                       autoCapitalize="none"
                       autoCorrect="off"
                       name="auth-register-email"
                       placeholder="example@email.com"
-                      aria-expanded={showEmailOptions && emailSuggestions.length > 0}
-                      aria-controls="email-suggestions"
                     />
-                    {showEmailOptions && emailSuggestions.length > 0 && (
-                      <div id="email-suggestions" className="email-suggestion-list" role="listbox" aria-label="Saved emails">
-                        {emailSuggestions.map((candidate) => (
-                          <button
-                            key={candidate}
-                            type="button"
-                            className="email-suggestion-item"
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              setEmail(candidate);
-                              setShowEmailOptions(false);
-                            }}
-                          >
-                            {candidate}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </label>
                   <label className="input-label">
                     <span>Şifrə</span>
@@ -570,7 +524,7 @@ export const LoginForm = ({ onSuccess, onNavigateHome }: LoginFormProps) => {
 
             {isSignInMode && (
               <form className="login-form" onSubmit={handleSignIn} autoComplete="off">
-                <label className="input-label email-input-wrap" ref={emailInputWrapRef}>
+                <label className="input-label email-input-wrap">
                   <span>Email</span>
                   <input
                     type="email"

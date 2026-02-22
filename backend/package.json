@@ -4,7 +4,8 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "migrate": "node scripts/migrate.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -14,6 +15,8 @@
     "morgan": "^1.10.0",
     "nodemailer": "^6.9.15",
     "papaparse": "^5.4.1",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

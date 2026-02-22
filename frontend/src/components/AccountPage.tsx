@@ -241,7 +241,7 @@ export const AccountPage = ({ user, settings, onSave }: AccountPageProps) => {
         </div>
       </div>
 
-      <Footer startTestPath="/test" />
+      <Footer startTestPath="/pre-quiz" />
     </section>
   );
 };

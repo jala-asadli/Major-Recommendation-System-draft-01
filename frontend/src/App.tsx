@@ -5,6 +5,9 @@ import { HomePage } from './components/HomePage';
 import { LoginForm } from './components/LoginForm';
 import { Navbar } from './components/Navbar';
 import { PreviousResults } from './components/PreviousResults';
+import { ProfilePage } from './components/ProfilePage';
+import { ProfileRedirectPage } from './components/ProfileRedirectPage';
+import { PreQuizPage } from './components/PreQuizPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicOnlyRoute } from './components/PublicOnlyRoute';
 import { Quiz } from './components/Quiz';
@@ -65,16 +68,34 @@ export const App = () => {
   const [profileSettings, setProfileSettings] = useState<Record<string, ProfileSettings>>(() => parseProfileSettings());
   const [authReady, setAuthReady] = useState(false);
 
+  const normalizeStoredResults = useCallback((rawResults: unknown[]): StoredResult[] => {
+    return rawResults.map((item) => {
+      const result = item as Record<string, unknown>;
+      return {
+        id: String(result.id || ''),
+        profile: String(result.profile || ''),
+        scores: (result.scores || {}) as StoredResult['scores'],
+        answers: (result.answers || {}) as StoredResult['answers'],
+        responseTimesSec: (result.responseTimesSec || result.response_times_sec || undefined) as StoredResult['responseTimesSec'],
+        recommendations: Array.isArray(result.recommendations) ? (result.recommendations as StoredResult['recommendations']) : [],
+        topMatch: (result.topMatch ?? result.top_match ?? null) as StoredResult['topMatch'],
+        chosenMajor: (result.chosenMajor ?? result.chosen_major ?? null) as StoredResult['chosenMajor'],
+        satisfactionScore: (result.satisfactionScore ?? result.satisfaction_score ?? null) as StoredResult['satisfactionScore'],
+        createdAt: String(result.createdAt || result.created_at || '')
+      };
+    });
+  }, []);
+
   const loadResultsForUser = useCallback(async (targetUserId: string) => {
     const response = await fetch(buildApiUrl(`/api/users/${targetUserId}/results`));
     if (!response.ok) {
       throw new Error('Unable to load your saved results.');
     }
     const payload = await response.json();
-    const results = Array.isArray(payload.results) ? payload.results : [];
+    const results = Array.isArray(payload.results) ? normalizeStoredResults(payload.results) : [];
     setPreviousResults(results);
     return results;
-  }, []);
+  }, [normalizeStoredResults]);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +152,7 @@ export const App = () => {
     results: StoredResult[];
     profile?: ProfilePayload;
   }) => {
+    const normalizedResults = Array.isArray(results) ? normalizeStoredResults(results) : [];
     setUser(nextUser);
     localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(nextUser));
     if (profile) {
@@ -144,9 +166,9 @@ export const App = () => {
         }
       }));
     }
-    setPreviousResults(Array.isArray(results) ? results : []);
+    setPreviousResults(normalizedResults);
     setResult(null);
-    navigate('/');
+    navigate(normalizedResults.length > 0 ? '/profile' : '/');
   };
 
   const handleComplete = useCallback(
@@ -162,7 +184,7 @@ export const App = () => {
 
   const handleRestart = useCallback(() => {
     setResult(null);
-    navigate('/test');
+    navigate('/pre-quiz');
   }, [navigate]);
 
   const handleSignOut = useCallback(() => {
@@ -175,6 +197,18 @@ export const App = () => {
   const handleResultPersisted = useCallback((storedResult: StoredResult) => {
     setPreviousResults((prev) => [storedResult, ...prev]);
   }, []);
+
+  const handleFeedbackConfirmed = useCallback(async () => {
+    if (user?.id) {
+      try {
+        await loadResultsForUser(user.id);
+      } catch {
+        // Keep existing local results if refresh fails.
+      }
+    }
+    setResult(null);
+    navigate('/profile');
+  }, [loadResultsForUser, navigate, user?.id]);
 
   const refreshResults = useCallback(async () => {
     if (!user?.id) {
@@ -299,7 +333,25 @@ export const App = () => {
           path="/test"
           element={
             <ProtectedRoute user={user}>
-              <Quiz onComplete={handleComplete} />
+              <Navigate to="/pre-quiz" replace />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/pre-quiz"
+          element={
+            <ProtectedRoute user={user}>
+              {previousResults.length > 0 ? <Navigate to="/profile" replace /> : <PreQuizPage user={user as UserProfile} />}
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/quiz"
+          element={
+            <ProtectedRoute user={user}>
+              {previousResults.length > 0 ? <Navigate to="/profile" replace /> : <Quiz onComplete={handleComplete} />}
             </ProtectedRoute>
           }
         />
@@ -309,16 +361,22 @@ export const App = () => {
           element={
             <ProtectedRoute user={user}>
               {!result ? (
-                <PreviousResults userName={`${user?.name || ''} ${user?.surname || ''}`.trim()} results={previousResults} onRefresh={refreshResults} />
+                <PreviousResults
+                  userName={`${user?.name || ''} ${user?.surname || ''}`.trim()}
+                  results={previousResults}
+                  onRefresh={refreshResults}
+                />
               ) : (
                 <ResultsPage
                   attemptId={result.attemptId}
                   profile={result.profile}
                   scores={result.scores}
                   answers={result.answers}
+                  responseTimesSec={result.responseTimesSec}
                   user={user as UserProfile}
                   onRestart={handleRestart}
                   onPersisted={handleResultPersisted}
+                  onFeedbackConfirmed={handleFeedbackConfirmed}
                 />
               )}
             </ProtectedRoute>
@@ -334,6 +392,33 @@ export const App = () => {
                 settings={activeSettings}
                 onSave={handleSaveSettings}
               />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profilim"
+          element={
+            <ProtectedRoute user={user}>
+              <ProfileRedirectPage user={user as UserProfile} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute user={user}>
+              <ProfilePage user={user as UserProfile} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/post-quiz"
+          element={
+            <ProtectedRoute user={user}>
+              <ProfilePage user={user as UserProfile} />
             </ProtectedRoute>
           }
         />

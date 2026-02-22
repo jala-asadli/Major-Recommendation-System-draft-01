@@ -18,6 +18,9 @@ import {
   getTotalResultsCount,
   updateUserProfile
 } from './userStore.js';
+import { runMigrations, getDb, withTransaction } from './db.js';
+import { countUserRecords } from './models/usersModel.js';
+import { saveQuizSubmission } from './services/quizPersistenceService.js';
 import {
   initAuthStore,
   getCredential,
@@ -47,10 +50,6 @@ const SMTP_PORT = Number.parseInt(process.env.SMTP_PORT || '587', 10);
 const SMTP_SECURE = typeof process.env.SMTP_SECURE === 'string' ? process.env.SMTP_SECURE === 'true' : SMTP_PORT === 465;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
-
-loadMajorsFromWorkbook();
-initUserStore();
-initAuthStore();
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const isStrongPassword = (value) => {
@@ -183,8 +182,13 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/stats/tests', (req, res) => {
-  res.json({ totalTests: getTotalResultsCount() });
+app.get('/api/stats/tests', async (req, res) => {
+  try {
+    const totalTests = await countUserRecords();
+    res.json({ totalTests });
+  } catch (error) {
+    res.json({ totalTests: await getTotalResultsCount() });
+  }
 });
 
 app.get('/api/questions', (req, res) => {
@@ -196,17 +200,17 @@ app.get('/api/majors/all', (req, res) => {
   res.json({ total: majors.length, majors });
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   try {
     const { name, surname, email, password } = req.body || {};
     if (email && password) {
       const normalizedEmail = normalizeEmail(email);
-      const account = getCredential(normalizedEmail);
+      const account = await getCredential(normalizedEmail);
       if (!account) {
-        const pendingVerification = getVerification(normalizedEmail);
+        const pendingVerification = await getVerification(normalizedEmail);
         if (pendingVerification) {
           if (isVerificationExpired(pendingVerification)) {
-            clearVerification(normalizedEmail);
+            await clearVerification(normalizedEmail);
           } else if (
             verifyPassword(password, pendingVerification.passwordHash, pendingVerification.passwordSalt) ||
             pendingVerification.password === password
@@ -223,11 +227,11 @@ app.post('/api/login', (req, res) => {
         }
         return res.status(401).json({ error: 'Invalid email or password.' });
       }
-      const user = getUserById(account.userId);
+      const user = await getUserById(account.userId);
       if (!user) {
         return res.status(404).json({ error: 'User account not found.' });
       }
-      const results = getUserResults(user.id);
+      const results = await getUserResults(user.id);
       return res.json({
         user: { id: user.id, name: user.name, surname: user.surname },
         results,
@@ -239,12 +243,88 @@ app.post('/api/login', (req, res) => {
         }
       });
     }
-
-    const user = getOrCreateUser(name, surname);
-    const results = getUserResults(user.id);
+    const user = await getOrCreateUser(name, surname);
+    const results = await getUserResults(user.id);
     res.json({ user: { id: user.id, name: user.name, surname: user.surname }, results });
   } catch (err) {
     res.status(400).json({ error: err.message || 'Unable to login' });
+  }
+});
+
+app.post('/register', async (req, res) => {
+  try {
+    const {
+      user_id,
+      first_name,
+      last_name,
+      gender,
+      education_level,
+      favorite_subject_1,
+      favorite_subject_2
+    } = req.body || {};
+
+    const userId = String(user_id || '').trim();
+    const firstName = String(first_name || '').trim();
+    const lastName = String(last_name || '').trim();
+    const normalizedGender = gender == null ? null : String(gender).trim() || null;
+    const normalizedEducationLevel = education_level == null ? null : String(education_level).trim() || null;
+    const normalizedFavoriteSubject1 = favorite_subject_1 == null ? null : String(favorite_subject_1).trim() || null;
+    const normalizedFavoriteSubject2 = favorite_subject_2 == null ? null : String(favorite_subject_2).trim() || null;
+
+    if (!userId || !firstName || !lastName) {
+      return res.status(400).json({ error: 'user_id, first_name, and last_name are required.' });
+    }
+
+    const db = await getDb();
+    const existing = await db.get('SELECT user_id FROM users WHERE user_id = ?', [userId]);
+    if (existing) {
+      return res.status(409).json({ error: 'User with this user_id already exists.' });
+    }
+
+    await db.run(
+      `INSERT INTO users (
+        user_id,
+        first_name,
+        last_name,
+        gender,
+        education_level,
+        favorite_subject_1,
+        favorite_subject_2,
+        R_score,
+        I_score,
+        A_score,
+        S_score,
+        E_score,
+        C_score,
+        riasec_profile
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, NULL)`,
+      [
+        userId,
+        firstName,
+        lastName,
+        normalizedGender,
+        normalizedEducationLevel,
+        normalizedFavoriteSubject1,
+        normalizedFavoriteSubject2
+      ]
+    );
+
+    return res.status(201).json({
+      ok: true,
+      message: 'User registered successfully.',
+      user: {
+        user_id: userId,
+        first_name: firstName,
+        last_name: lastName,
+        gender: normalizedGender,
+        education_level: normalizedEducationLevel,
+        favorite_subject_1: normalizedFavoriteSubject1,
+        favorite_subject_2: normalizedFavoriteSubject2,
+        riasec_profile: null
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Unable to register user.' });
   }
 });
 
@@ -261,7 +341,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const normalizedEmail = normalizeEmail(email);
-    if (getCredential(normalizedEmail)) {
+    if (await getCredential(normalizedEmail)) {
       return res.status(409).json({ error: 'This email is already registered.' });
     }
     if (!mailer) {
@@ -274,7 +354,7 @@ app.post('/api/auth/register', async (req, res) => {
     const verificationCode = generateVerificationCode();
     const expiresAt = getVerificationExpiry();
     const { passwordHash, passwordSalt } = hashPassword(password);
-    saveVerification(normalizedEmail, {
+    await saveVerification(normalizedEmail, {
       password: '',
       passwordHash,
       passwordSalt,
@@ -293,7 +373,7 @@ app.post('/api/auth/register', async (req, res) => {
     try {
       await sendVerificationEmail({ email: normalizedEmail, code: verificationCode, expiresAt });
     } catch (mailError) {
-      clearVerification(normalizedEmail);
+      await clearVerification(normalizedEmail);
       console.error('Failed to send verification email:', mailError);
       if (mailError?.code === 'SMTP_NOT_CONFIGURED') {
         return res.status(503).json({ error: mailError.message });
@@ -313,7 +393,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/verify-email', (req, res) => {
+app.post('/api/auth/verify-email', async (req, res) => {
   try {
     const { email, code } = req.body || {};
     if (!email || !code || typeof email !== 'string' || typeof code !== 'string' || !isValidEmail(email)) {
@@ -321,25 +401,25 @@ app.post('/api/auth/verify-email', (req, res) => {
     }
 
     const normalizedEmail = normalizeEmail(email);
-    if (getCredential(normalizedEmail)) {
+    if (await getCredential(normalizedEmail)) {
       return res.status(409).json({ error: 'This email is already verified.' });
     }
 
-    const verification = getVerification(normalizedEmail);
+    const verification = await getVerification(normalizedEmail);
     if (!verification) {
       return res.status(404).json({ error: 'No pending verification found for this email.' });
     }
     if (isVerificationExpired(verification)) {
-      clearVerification(normalizedEmail);
+      await clearVerification(normalizedEmail);
       return res.status(400).json({ error: 'Verification code expired. Please register again.' });
     }
 
     const submittedHash = hashVerificationCode(normalizedEmail, code.trim());
     if (!isHashMatch(submittedHash, verification.codeHash)) {
-      const updated = incrementVerificationAttempt(normalizedEmail);
+      const updated = await incrementVerificationAttempt(normalizedEmail);
       const attempts = updated?.attemptCount || 1;
       if (attempts >= VERIFICATION_MAX_ATTEMPTS) {
-        clearVerification(normalizedEmail);
+        await clearVerification(normalizedEmail);
         return res.status(429).json({ error: 'Too many failed attempts. Please register again.' });
       }
       const remaining = VERIFICATION_MAX_ATTEMPTS - attempts;
@@ -351,9 +431,9 @@ app.post('/api/auth/verify-email', (req, res) => {
     const fallbackNameParts = toNameParts(normalizedEmail);
     const safeName = name || fallbackNameParts.name;
     const safeSurname = surname || fallbackNameParts.surname;
-    const resolvedUser = getOrCreateUser(safeName, safeSurname);
+    const resolvedUser = await getOrCreateUser(safeName, safeSurname);
     const fallbackPassword = hashPassword(verification.password || '');
-    saveCredential(normalizedEmail, {
+    await saveCredential(normalizedEmail, {
       userId: resolvedUser.id,
       password: '',
       passwordHash: verification.passwordHash || fallbackPassword.passwordHash,
@@ -361,13 +441,15 @@ app.post('/api/auth/verify-email', (req, res) => {
       username: verification.username || '',
       birthDate: verification.birthDate || '',
       gender: verification.gender || '',
+      firstName: resolvedUser.name,
+      lastName: resolvedUser.surname,
       email: normalizedEmail,
       passwordUpdatedAt: new Date().toISOString(),
       verifiedAt: new Date().toISOString()
     });
-    clearVerification(normalizedEmail);
+    await clearVerification(normalizedEmail);
 
-    const results = getUserResults(resolvedUser.id);
+    const results = await getUserResults(resolvedUser.id);
     return res.json({
       ok: true,
       email: normalizedEmail,
@@ -393,7 +475,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
     }
 
     const normalizedEmail = normalizeEmail(email);
-    if (getCredential(normalizedEmail)) {
+    if (await getCredential(normalizedEmail)) {
       return res.status(409).json({ error: 'This email is already verified.' });
     }
     if (!mailer) {
@@ -403,14 +485,14 @@ app.post('/api/auth/resend-verification', async (req, res) => {
       });
     }
 
-    const pending = getVerification(normalizedEmail);
+    const pending = await getVerification(normalizedEmail);
     if (!pending) {
       return res.status(404).json({ error: 'No pending verification found. Please register again.' });
     }
 
     const verificationCode = generateVerificationCode();
     const expiresAt = getVerificationExpiry();
-    saveVerification(normalizedEmail, {
+    await saveVerification(normalizedEmail, {
       password: pending.password || '',
       passwordHash: pending.passwordHash || '',
       passwordSalt: pending.passwordSalt || '',
@@ -461,7 +543,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 
     const normalizedEmail = normalizeEmail(email);
-    const credential = getCredential(normalizedEmail);
+    const credential = await getCredential(normalizedEmail);
     if (!credential || credential.provider !== 'local') {
       return res.json(genericResponse);
     }
@@ -486,7 +568,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     try {
       await sendPasswordResetEmail({ email: normalizedEmail, resetLink, expiresAt });
-      savePasswordReset(normalizedEmail, {
+      await savePasswordReset(normalizedEmail, {
         tokenHash: hashResetToken(resetToken),
         expiresAt,
         createdAt: new Date().toISOString(),
@@ -509,7 +591,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   }
 });
 
-app.get('/api/auth/reset-password/validate', (req, res) => {
+app.get('/api/auth/reset-password/validate', async (req, res) => {
   try {
     const emailParam = req.query.email;
     const tokenParam = req.query.token;
@@ -521,14 +603,14 @@ app.get('/api/auth/reset-password/validate', (req, res) => {
     }
 
     const normalizedEmail = normalizeEmail(email);
-    const credential = getCredential(normalizedEmail);
+    const credential = await getCredential(normalizedEmail);
     if (!credential || credential.provider !== 'local') {
       return res.status(400).json({ ok: false, error: 'Invalid or expired reset token.' });
     }
 
-    const resetRecord = getPasswordReset(normalizedEmail);
+    const resetRecord = await getPasswordReset(normalizedEmail);
     if (!resetRecord || resetRecord.usedAt || isPasswordResetExpired(resetRecord)) {
-      clearPasswordReset(normalizedEmail);
+      await clearPasswordReset(normalizedEmail);
       return res.status(400).json({ ok: false, error: 'Invalid or expired reset token.' });
     }
 
@@ -544,7 +626,7 @@ app.get('/api/auth/reset-password/validate', (req, res) => {
   }
 });
 
-app.post('/api/auth/reset-password', (req, res) => {
+app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { email, token, password } = req.body || {};
     if (!email || !token || !password || typeof email !== 'string' || typeof token !== 'string' || typeof password !== 'string') {
@@ -560,14 +642,14 @@ app.post('/api/auth/reset-password', (req, res) => {
     }
 
     const normalizedEmail = normalizeEmail(email);
-    const credential = getCredential(normalizedEmail);
+    const credential = await getCredential(normalizedEmail);
     if (!credential || credential.provider !== 'local') {
       return res.status(400).json({ error: 'Invalid or expired reset token.' });
     }
 
-    const resetRecord = getPasswordReset(normalizedEmail);
+    const resetRecord = await getPasswordReset(normalizedEmail);
     if (!resetRecord || resetRecord.usedAt || isPasswordResetExpired(resetRecord)) {
-      clearPasswordReset(normalizedEmail);
+      await clearPasswordReset(normalizedEmail);
       return res.status(400).json({ error: 'Invalid or expired reset token.' });
     }
 
@@ -577,7 +659,7 @@ app.post('/api/auth/reset-password', (req, res) => {
     }
 
     const { passwordHash, passwordSalt } = hashPassword(password);
-    saveCredential(normalizedEmail, {
+    await saveCredential(normalizedEmail, {
       userId: credential.userId,
       password: '',
       passwordHash,
@@ -587,7 +669,7 @@ app.post('/api/auth/reset-password', (req, res) => {
       passwordUpdatedAt: new Date().toISOString(),
       verifiedAt: credential.verifiedAt || new Date().toISOString()
     });
-    clearPasswordReset(normalizedEmail);
+    await clearPasswordReset(normalizedEmail);
 
     return res.json({ ok: true, message: 'Password has been reset successfully.' });
   } catch (err) {
@@ -617,15 +699,15 @@ app.post('/api/auth/google', async (req, res) => {
     }
 
     const normalizedEmail = normalizeEmail(payload.email);
-    const existingCredential = getCredential(normalizedEmail);
-    let user = existingCredential ? getUserById(existingCredential.userId) : null;
+    const existingCredential = await getCredential(normalizedEmail);
+    let user = existingCredential ? await getUserById(existingCredential.userId) : null;
     if (!user) {
       const name = payload.given_name || payload.name?.split(' ')[0] || 'Google';
       const surname = payload.family_name || payload.name?.split(' ').slice(1).join(' ') || 'User';
-      user = getOrCreateUser(name, surname);
+      user = await getOrCreateUser(name, surname);
     }
 
-    saveCredential(normalizedEmail, {
+    await saveCredential(normalizedEmail, {
       userId: user.id,
       password: existingCredential?.password || '',
       provider: 'google',
@@ -633,11 +715,13 @@ app.post('/api/auth/google', async (req, res) => {
       username: existingCredential?.username || '',
       birthDate: existingCredential?.birthDate || '',
       gender: existingCredential?.gender || '',
+      firstName: user.name,
+      lastName: user.surname,
       email: normalizedEmail,
       verifiedAt: new Date().toISOString()
     });
 
-    const results = getUserResults(user.id);
+    const results = await getUserResults(user.id);
     return res.json({
       ok: true,
       user: { id: user.id, name: user.name, surname: user.surname },
@@ -655,22 +739,37 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-app.get('/api/users/:userId/results', (req, res) => {
+app.get('/api/users/:userId/results', async (req, res) => {
   try {
     const { userId } = req.params;
-    const results = getUserResults(userId);
+    const results = await getUserResults(userId);
     res.json({ results });
   } catch (err) {
     res.status(404).json({ error: err.message || 'Unable to load results' });
   }
 });
 
-app.put('/api/users/:userId/profile', (req, res) => {
+app.get('/api/users/:userId/quiz-status', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const db = await getDb();
+    const existingUser = await db.get('SELECT user_id FROM users WHERE user_id = ?', [userId]);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const attempt = await db.get('SELECT 1 AS has_attempt FROM user_major_recommendations WHERE user_id = ? LIMIT 1', [userId]);
+    return res.json({ hasAttempt: Boolean(attempt) });
+  } catch (err) {
+    return res.status(500).json({ error: 'Unable to determine quiz status' });
+  }
+});
+
+app.put('/api/users/:userId/profile', async (req, res) => {
   try {
     const { userId } = req.params;
     const { name, surname, username, birthDate, gender, email } = req.body || {};
 
-    const user = getUserById(userId);
+    const user = await getUserById(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -686,20 +785,20 @@ app.put('/api/users/:userId/profile', (req, res) => {
       return res.status(400).json({ error: 'Email is invalid.' });
     }
 
-    const conflictingCredential = normalizedEmail ? getCredential(normalizedEmail) : null;
+    const conflictingCredential = normalizedEmail ? await getCredential(normalizedEmail) : null;
     if (conflictingCredential && conflictingCredential.userId !== userId) {
       return res.status(409).json({ error: 'This email is already in use by another account.' });
     }
 
-    const updatedUser = updateUserProfile(userId, {
+    const updatedUser = await updateUserProfile(userId, {
       name: normalizedName,
       surname: normalizedSurname
     });
 
-    const existingCredential = getCredentialByUserId(userId);
+    const existingCredential = await getCredentialByUserId(userId);
     let updatedCredential = existingCredential;
     if (existingCredential) {
-      updatedCredential = updateCredentialByUserId(userId, {
+      updatedCredential = await updateCredentialByUserId(userId, {
         username: normalizeText(username),
         birthDate: normalizeText(birthDate),
         gender: normalizeText(gender),
@@ -707,7 +806,7 @@ app.put('/api/users/:userId/profile', (req, res) => {
       });
     }
 
-    const results = getUserResults(userId);
+    const results = await getUserResults(userId);
     return res.json({
       ok: true,
       user: {
@@ -728,16 +827,16 @@ app.put('/api/users/:userId/profile', (req, res) => {
   }
 });
 
-app.get('/api/users/:userId/profile', (req, res) => {
+app.get('/api/users/:userId/profile', async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = getUserById(userId);
+    const user = await getUserById(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const credential = getCredentialByUserId(userId);
-    const results = getUserResults(userId);
+    const credential = await getCredentialByUserId(userId);
+    const results = await getUserResults(userId);
     const fullName = `${user.name || ''} ${user.surname || ''}`.trim();
 
     return res.json({
@@ -755,28 +854,260 @@ app.get('/api/users/:userId/profile', (req, res) => {
   }
 });
 
-app.post('/api/users/:userId/results', (req, res) => {
+app.get('/api/users/:userId/assessment-profile', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { profile, scores, answers, recommendations } = req.body || {};
-    if (!profile || typeof profile !== 'string') {
-      return res.status(400).json({ error: 'profile is required' });
+    const user = await getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
-    if (!scores || typeof scores !== 'object') {
-      return res.status(400).json({ error: 'scores object is required' });
+
+    const db = await getDb();
+    const userRow = await db.get(
+      `SELECT
+        user_id, R_score, I_score, A_score, S_score, E_score, C_score,
+        riasec_profile, chosen_major, satisfaction_score, created_at
+       FROM users
+       WHERE user_id = ?`,
+      [userId]
+    );
+    const recommendations = await db.all(
+      `SELECT major_name, recommendation_rank, recommendation_score, created_at
+       FROM user_major_recommendations
+       WHERE user_id = ?
+       ORDER BY recommendation_rank ASC
+       LIMIT 10`,
+      [userId]
+    );
+
+    return res.json({
+      profile: {
+        user_id: userId,
+        scores: {
+          R: Number(userRow?.R_score || 0),
+          I: Number(userRow?.I_score || 0),
+          A: Number(userRow?.A_score || 0),
+          S: Number(userRow?.S_score || 0),
+          E: Number(userRow?.E_score || 0),
+          C: Number(userRow?.C_score || 0)
+        },
+        riasec_profile: userRow?.riasec_profile || '',
+        chosen_major: userRow?.chosen_major || null,
+        satisfaction_score: userRow?.satisfaction_score == null ? null : Number(userRow.satisfaction_score),
+        recommendations: recommendations.map((row) => ({
+          major_name: row.major_name,
+          recommendation_rank: Number(row.recommendation_rank || 0),
+          recommendation_score: Number(row.recommendation_score || 0)
+        })),
+        completed: recommendations.length > 0,
+        created_at: userRow?.created_at || null
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Unable to load assessment profile' });
+  }
+});
+
+app.post('/api/users/:userId/pre-quiz', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const educationLevelRaw = typeof req.body?.education_level === 'string' ? req.body.education_level.trim() : '';
+    const favoriteSubject1Raw = typeof req.body?.favorite_subject_1 === 'string' ? req.body.favorite_subject_1.trim() : '';
+    const favoriteSubject2Raw = typeof req.body?.favorite_subject_2 === 'string' ? req.body.favorite_subject_2.trim() : '';
+
+    const EDUCATION_LEVELS = new Set([
+      'İbtidai təhsil',
+      'Orta təhsil',
+      'Tam orta təhsil',
+      'Subbakalavr',
+      'Bakalavr',
+      'Magistr'
+    ]);
+    const SUBJECTS = new Set([
+      'Texnologiya',
+      'Fiziki tərbiyə',
+      'Çağırışaqədərki hazırlıq',
+      'Riyaziyyat',
+      'Fizika',
+      'Kimya',
+      'Biologiya',
+      'İnformatika',
+      'Musiqi',
+      'Təsviri incəsənət',
+      'Ədəbiyyat',
+      'Həyat bilgisi',
+      'Azərbaycan dili',
+      'Ümumi tarix',
+      'Xarici dil',
+      'Azərbaycan tarixi'
+    ]);
+
+    if (!educationLevelRaw || !EDUCATION_LEVELS.has(educationLevelRaw)) {
+      return res.status(400).json({ error: 'Təhsil səviyyəsini düzgün seçin.' });
     }
-    if (!Array.isArray(recommendations)) {
-      return res.status(400).json({ error: 'recommendations array is required' });
+    if (!favoriteSubject1Raw || !SUBJECTS.has(favoriteSubject1Raw)) {
+      return res.status(400).json({ error: 'Sevimli fənn 1 mütləq seçilməlidir.' });
     }
-    const stored = recordUserResult(userId, {
-      profile,
-      scores,
+    if (favoriteSubject2Raw && !SUBJECTS.has(favoriteSubject2Raw)) {
+      return res.status(400).json({ error: 'Sevimli fənn 2 düzgün seçilməlidir.' });
+    }
+
+    const accountUser = await getUserById(userId);
+    if (!accountUser) {
+      return res.status(404).json({ error: 'İstifadəçi tapılmadı.' });
+    }
+
+    const db = await getDb();
+    await db.run(
+      `UPDATE users
+       SET education_level = ?, favorite_subject_1 = ?, favorite_subject_2 = ?
+       WHERE user_id = ?`,
+      [educationLevelRaw, favoriteSubject1Raw, favoriteSubject2Raw || null, userId]
+    );
+
+    return res.json({
+      ok: true,
+      message: 'Məlumatlar yadda saxlanıldı.',
+      pre_quiz: {
+        education_level: educationLevelRaw,
+        favorite_subject_1: favoriteSubject1Raw,
+        favorite_subject_2: favoriteSubject2Raw || null
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Məlumatlar yadda saxlanılarkən xəta baş verdi.' });
+  }
+});
+
+app.post('/api/users/:userId/results', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { answers } = req.body || {};
+    const accountUser = await getUserById(userId);
+    if (!accountUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const saveSummary = await saveQuizSubmission({
+      accountUser,
       answers: answers && typeof answers === 'object' ? answers : {},
-      recommendations
+      responseTimesSec: req.body?.responseTimesSec,
+      userMeta: req.body?.userMeta
+    });
+
+    const finalizedUserSnapshot = saveSummary?.user;
+    if (!finalizedUserSnapshot) {
+      return res.status(500).json({ error: 'Unable to persist finalized user snapshot' });
+    }
+
+    const stored = await recordUserResult(userId, {
+      userSnapshot: finalizedUserSnapshot,
+      answers: answers && typeof answers === 'object' ? answers : {},
+      recommendations: []
     });
     res.json({ result: stored });
   } catch (err) {
+    if (err?.code === 'QUIZ_ALREADY_COMPLETED') {
+      return res.status(409).json({ error: err.message || 'Quiz already completed', code: err.code });
+    }
     res.status(400).json({ error: err.message || 'Unable to save result' });
+  }
+});
+
+app.post('/api/users/:userId/feedback', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const chosenMajorRaw = typeof req.body?.chosen_major === 'string' ? req.body.chosen_major.trim() : '';
+    const hasSatisfaction = req.body?.satisfaction_score != null && req.body?.satisfaction_score !== '';
+    const satisfaction = hasSatisfaction ? Number.parseInt(String(req.body?.satisfaction_score), 10) : null;
+
+    if (!chosenMajorRaw || !hasSatisfaction) {
+      return res.status(400).json({ error: 'Zəhmət olmasa ixtisas və məmnunluq dərəcəsini seçin.' });
+    }
+    if (!Number.isInteger(satisfaction) || satisfaction < 1 || satisfaction > 5) {
+      return res.status(400).json({ error: 'Məmnunluq dərəcəsi 1-5 aralığında olmalıdır.' });
+    }
+
+    const accountUser = await getUserById(userId);
+    if (!accountUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const updated = await withTransaction(async (db) => {
+      const existing = await db.get('SELECT user_id, chosen_major FROM users WHERE user_id = ?', [userId]);
+      if (!existing) {
+        throw new Error('İstifadəçi tapılmadı.');
+      }
+
+      if (existing.chosen_major && String(existing.chosen_major).trim()) {
+        const alreadyChosen = String(existing.chosen_major).trim();
+        if (alreadyChosen === chosenMajorRaw) {
+          throw new Error('Bu ixtisas artıq təsdiqlənib.');
+        }
+        throw new Error('İxtisas seçimi artıq təsdiqlənib. Yenidən dəyişmək mümkün deyil.');
+      }
+
+      const recommended = await db.get(
+        `SELECT major_name FROM user_major_recommendations WHERE user_id = ? AND major_name = ? LIMIT 1`,
+        [userId, chosenMajorRaw]
+      );
+      if (!recommended) {
+        throw new Error('Yalnız tövsiyə olunan ixtisaslardan seçim edə bilərsiniz.');
+      }
+
+      const chosenMajorToSave = chosenMajorRaw;
+      await db.run(
+        `UPDATE users
+         SET chosen_major = ?, satisfaction_score = ?
+         WHERE user_id = ?`,
+        [chosenMajorToSave, satisfaction, userId]
+      );
+
+      const maxRankRow = await db.get(
+        `SELECT COALESCE(MAX(recommendation_rank), 0) AS max_rank
+         FROM user_major_recommendations
+         WHERE user_id = ?`,
+        [userId]
+      );
+      const nextRank = Number(maxRankRow?.max_rank || 0) + 1;
+
+      await db.run(
+        `INSERT INTO user_major_recommendations (user_id, major_name, recommendation_rank, recommendation_score)
+         VALUES (?, ?, ?, 0)
+         ON CONFLICT (user_id, major_name) DO NOTHING`,
+        [userId, chosenMajorToSave, nextRank]
+      );
+
+      const updatedRow = await db.get(
+        `SELECT user_id, chosen_major, satisfaction_score
+         FROM users
+         WHERE user_id = ?`,
+        [userId]
+      );
+
+      await db.run(
+        `UPDATE user_major_recommendations
+         SET recommendation_score = CASE
+           WHEN recommendation_score IS NULL OR recommendation_score < ? THEN ?
+           ELSE recommendation_score
+         END
+         WHERE user_id = ? AND major_name = ?`,
+        [satisfaction, satisfaction, userId, chosenMajorToSave]
+      );
+
+      return updatedRow;
+    });
+
+    return res.json({
+      ok: true,
+      feedback: {
+        user_id: updated.user_id,
+        chosen_major: updated.chosen_major || null,
+        satisfaction_score: updated.satisfaction_score
+      }
+    });
+  } catch (err) {
+    return res.status(400).json({ error: err.message || 'Seçim yadda saxlanılarkən xəta baş verdi.' });
   }
 });
 
@@ -810,10 +1141,23 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-const server = app.listen(PORT, HOST, () => {
-  console.log(`RIASEC backend running on http://${HOST}:${PORT}`);
-});
+async function bootstrap() {
+  loadMajorsFromWorkbook();
+  await runMigrations();
+  await initUserStore();
+  await initAuthStore();
+  await getDb();
 
-server.on('error', (error) => {
-  console.error('Server listen error:', error);
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`RIASEC backend running on http://${HOST}:${PORT}`);
+  });
+
+  server.on('error', (error) => {
+    console.error('Server listen error:', error);
+  });
+}
+
+bootstrap().catch((error) => {
+  console.error('Server bootstrap failed:', error);
+  process.exit(1);
 });

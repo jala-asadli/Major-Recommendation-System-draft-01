@@ -16,8 +16,13 @@ export const Quiz = ({ onComplete }: QuizProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [responseTimesSec, setResponseTimesSec] = useState<Record<number, number>>({});
   const { scores, addCode, reset, getProfileString } = useRiasecScoring();
   const autoAdvanceTimeoutRef = useRef<number | null>(null);
+  const questionStartedAtRef = useRef<number>(typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const answersRef = useRef<Record<number, string>>({});
+  const responseTimesSecRef = useRef<Record<number, number>>({});
+  const pendingResponseTimeSecRef = useRef<number | null>(null);
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -40,12 +45,22 @@ export const Quiz = ({ onComplete }: QuizProps) => {
   }, []);
 
   const commitAnswer = (questionId: number, value: string) => {
-    let snapshot: Record<number, string> = {};
-    setAnswers((prev) => {
-      snapshot = { ...prev, [questionId]: value };
-      return snapshot;
-    });
-    return snapshot;
+    answersRef.current = { ...answersRef.current, [questionId]: value };
+    setAnswers(answersRef.current);
+    return answersRef.current;
+  };
+
+  const getElapsedSeconds = () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const elapsed = (now - questionStartedAtRef.current) / 1000;
+    return Number(Math.max(0, elapsed).toFixed(2));
+  };
+
+  const commitResponseTime = (questionId: number, elapsedSec?: number) => {
+    const measured = typeof elapsedSec === 'number' && Number.isFinite(elapsedSec) ? elapsedSec : getElapsedSeconds();
+    responseTimesSecRef.current = { ...responseTimesSecRef.current, [questionId]: Number(Math.max(0, measured).toFixed(2)) };
+    setResponseTimesSec(responseTimesSecRef.current);
+    return responseTimesSecRef.current;
   };
 
   const clearAutoAdvance = () => {
@@ -63,10 +78,12 @@ export const Quiz = ({ onComplete }: QuizProps) => {
     const option = selectedOption;
     const updatedScores = addCode(option.code);
     const updatedAnswers = commitAnswer(currentQuestion.id, option.id);
+    const updatedResponseTimes = commitResponseTime(currentQuestion.id, pendingResponseTimeSecRef.current ?? undefined);
+    pendingResponseTimeSecRef.current = null;
     const isLast = currentIndex + 1 >= questions.length;
     if (isLast) {
       const profile = getProfileString(updatedScores);
-      onComplete({ profile, scores: updatedScores, answers: updatedAnswers });
+      onComplete({ profile, scores: updatedScores, answers: updatedAnswers, responseTimesSec: updatedResponseTimes });
     } else {
       setSelectedOptionId(null);
       setCurrentIndex((prev) => prev + 1);
@@ -75,6 +92,7 @@ export const Quiz = ({ onComplete }: QuizProps) => {
 
   const handleOptionSelect = (optionId: string) => {
     setSelectedOptionId(optionId);
+    pendingResponseTimeSecRef.current = getElapsedSeconds();
     clearAutoAdvance();
     autoAdvanceTimeoutRef.current = window.setTimeout(() => {
       commitSelectedAnswer(optionId);
@@ -85,11 +103,13 @@ export const Quiz = ({ onComplete }: QuizProps) => {
   const handlePass = () => {
     clearAutoAdvance();
     const currentQuestion = questions[currentIndex];
+    const elapsedSec = getElapsedSeconds();
     const updatedAnswers = commitAnswer(currentQuestion.id, 'pass');
+    const updatedResponseTimes = commitResponseTime(currentQuestion.id, elapsedSec);
     const isLast = currentIndex + 1 >= questions.length;
     if (isLast) {
       const profile = getProfileString(scores);
-      onComplete({ profile, scores, answers: updatedAnswers });
+      onComplete({ profile, scores, answers: updatedAnswers, responseTimesSec: updatedResponseTimes });
     } else {
       setSelectedOptionId(null);
       setCurrentIndex((prev) => prev + 1);
@@ -101,6 +121,10 @@ export const Quiz = ({ onComplete }: QuizProps) => {
     setCurrentIndex(0);
     setSelectedOptionId(null);
     setAnswers({});
+    setResponseTimesSec({});
+    answersRef.current = {};
+    responseTimesSecRef.current = {};
+    pendingResponseTimeSecRef.current = null;
     reset();
   };
 
@@ -109,6 +133,10 @@ export const Quiz = ({ onComplete }: QuizProps) => {
       clearAutoAdvance();
     };
   }, []);
+
+  useEffect(() => {
+    questionStartedAtRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  }, [currentIndex]);
 
   const progressPercent = useMemo(() => {
     if (!questions.length) {

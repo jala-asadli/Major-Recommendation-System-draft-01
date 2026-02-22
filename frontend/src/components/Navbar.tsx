@@ -124,13 +124,13 @@ export const Navbar = ({ isAuthenticated, avatarSource = '', onLogout }: NavbarP
 
                 {menuOpen && (
                   <div className="profile-menu-list" role="menu">
-                    <Link to="/account" className="profile-menu-item" role="menuitem" onClick={() => setMenuOpen(false)}>
+                    <Link to="/profilim" className="profile-menu-item" role="menuitem" onClick={() => setMenuOpen(false)}>
                       Profilim
                     </Link>
                     <Link to="/results" className="profile-menu-item" role="menuitem" onClick={() => setMenuOpen(false)}>
                       Nəticələrim
                     </Link>
-                    <Link to="/test" className="profile-menu-item" role="menuitem" onClick={() => setMenuOpen(false)}>
+                    <Link to="/pre-quiz" className="profile-menu-item" role="menuitem" onClick={() => setMenuOpen(false)}>
                       Testə başla
                     </Link>
                     <div className="profile-menu-divider" aria-hidden="true" />
@@ -194,13 +194,13 @@ export const Navbar = ({ isAuthenticated, avatarSource = '', onLogout }: NavbarP
                 </>
               ) : (
                 <>
-                  <Link to="/account" className="home-modern-mobile-link" onClick={() => setMobileNavOpen(false)}>
+                  <Link to="/profilim" className="home-modern-mobile-link" onClick={() => setMobileNavOpen(false)}>
                     Profilim
                   </Link>
                   <Link to="/results" className="home-modern-mobile-link" onClick={() => setMobileNavOpen(false)}>
                     Nəticələrim
                   </Link>
-                  <Link to="/test" className="home-modern-mobile-link" onClick={() => setMobileNavOpen(false)}>
+                  <Link to="/pre-quiz" className="home-modern-mobile-link" onClick={() => setMobileNavOpen(false)}>
                     Testə başla
                   </Link>
                   <button

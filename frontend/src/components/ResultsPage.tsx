@@ -8,34 +8,30 @@ interface ResultsPageProps extends QuizResultPayload {
   user: UserProfile;
   onRestart: () => void;
   onPersisted?: (result: StoredResult) => void;
+  onFeedbackConfirmed?: () => void;
 }
 
-export const ResultsPage = ({ attemptId, profile, scores, answers, user, onRestart, onPersisted }: ResultsPageProps) => {
+export const ResultsPage = ({
+  attemptId,
+  profile,
+  scores,
+  answers,
+  responseTimesSec,
+  user,
+  onRestart,
+  onPersisted,
+  onFeedbackConfirmed
+}: ResultsPageProps) => {
   const [recommendations, setRecommendations] = useState<MajorRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    const fetchAndStore = async () => {
+    const saveSubmission = async () => {
       setLoading(true);
       setError('');
       try {
-        const response = await fetch(buildApiUrl('/api/recommend'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ profile, limit: 20 })
-        });
-        if (!response.ok) {
-          throw new Error('Unable to fetch recommendations');
-        }
-        const payload = await response.json();
-        const nextRecommendations: MajorRecommendation[] = Array.isArray(payload.recommendations) ? payload.recommendations : [];
-        if (cancelled) return;
-        setRecommendations(nextRecommendations);
-
         const saveResponse = await fetch(buildApiUrl(`/api/users/${user.id}/results`), {
           method: 'POST',
           headers: {
@@ -45,15 +41,26 @@ export const ResultsPage = ({ attemptId, profile, scores, answers, user, onResta
             profile,
             scores,
             answers,
-            recommendations: nextRecommendations
+            responseTimesSec
           })
         });
         if (!saveResponse.ok) {
-          throw new Error('Unable to save your quiz results');
+          const body = await saveResponse.json().catch(() => ({}));
+          if (saveResponse.status === 409) {
+            onFeedbackConfirmed?.();
+            return;
+          }
+          throw new Error(body?.error || 'Unable to save your quiz results');
         }
         const savedPayload = await saveResponse.json();
-        if (!cancelled && savedPayload?.result) {
+        if (cancelled) return;
+        if (savedPayload?.result) {
+          const nextRecommendations: MajorRecommendation[] = Array.isArray(savedPayload.result.recommendations)
+            ? savedPayload.result.recommendations
+            : [];
+          setRecommendations(nextRecommendations);
           onPersisted?.(savedPayload.result);
+          onFeedbackConfirmed?.();
         }
       } catch (err) {
         if (!cancelled) {
@@ -66,11 +73,11 @@ export const ResultsPage = ({ attemptId, profile, scores, answers, user, onResta
       }
     };
 
-    fetchAndStore();
+    saveSubmission();
     return () => {
       cancelled = true;
     };
-  }, [attemptId, profile, scores, answers, user.id, onPersisted]);
+  }, [attemptId, profile, scores, answers, responseTimesSec, user.id, onPersisted, onFeedbackConfirmed]);
 
   const sortedScores = useMemo(() => {
     return Object.entries(scores)
@@ -108,9 +115,11 @@ export const ResultsPage = ({ attemptId, profile, scores, answers, user, onResta
             <p className="results-label">Top matching majors</p>
             <h2>Personalized for your strengths</h2>
           </header>
-          {loading && <p>Loading recommendations…</p>}
+          {loading && <p>Saving your results…</p>}
           {error && <p>{error}</p>}
-          {!loading && !error && <RecommendationList recommendations={recommendations} />}
+          {!loading && (
+            <RecommendationList recommendations={recommendations} />
+          )}
         </section>
       </div>
     </section>

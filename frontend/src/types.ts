@@ -4,7 +4,7 @@ export type ScoreRecord = Record<RiasecLetter, number>;
 export interface QuestionOption {
   id: string;
   imageUrl: string;
-  code: string; // two-letter code such as "IR"
+  code: string; // single-letter RIASEC code such as "I"
   description: string;
 }
 
@@ -31,7 +31,11 @@ export interface StoredResult {
   profile: string;
   scores: ScoreRecord;
   answers: Record<number, string>;
+  responseTimesSec?: Record<number, number>;
   recommendations: MajorRecommendation[];
+  topMatch?: string | null;
+  chosenMajor?: string | null;
+  satisfactionScore?: number | null;
   createdAt: string;
 }
 
@@ -39,4 +43,5 @@ export interface QuizResultPayload {
   profile: string;
   scores: ScoreRecord;
   answers: Record<number, string>;
+  responseTimesSec: Record<number, number>;
 }

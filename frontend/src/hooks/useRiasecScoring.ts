@@ -18,9 +18,12 @@ export const useRiasecScoring = () => {
   const addCode = useCallback(
     (code: string) => {
       const next = { ...scores };
-      const primaryLetter = normalizeLetter(code.slice(0, 1));
-      if (primaryLetter) {
-        next[primaryLetter] += 1;
+      const normalizedCode = String(code || '').trim().toUpperCase();
+      const selectedLetter = normalizeLetter(normalizedCode);
+      const fallbackLetter = normalizeLetter(normalizedCode.slice(0, 1));
+      const targetLetter = selectedLetter || fallbackLetter;
+      if (targetLetter) {
+        next[targetLetter] += 1;
       }
       setScores(next);
       return next;

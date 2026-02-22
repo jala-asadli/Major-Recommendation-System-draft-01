@@ -1,101 +1,160 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { getDb, withTransaction } from './db.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DATA_DIR = path.resolve(__dirname, '../data');
-const DATA_FILE = path.join(DATA_DIR, 'auth.json');
-
-let cache = {
-  credentials: {},
-  verifications: {},
-  passwordResets: {}
-};
-
-function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(cache, null, 2));
-    return;
-  }
-  try {
-    const fileData = fs.readFileSync(DATA_FILE, 'utf8');
-    const parsed = JSON.parse(fileData);
-    if (parsed && typeof parsed === 'object') {
-      cache.credentials = parsed.credentials && typeof parsed.credentials === 'object' ? parsed.credentials : {};
-      cache.verifications = parsed.verifications && typeof parsed.verifications === 'object' ? parsed.verifications : {};
-      cache.passwordResets = parsed.passwordResets && typeof parsed.passwordResets === 'object' ? parsed.passwordResets : {};
-    }
-  } catch (err) {
-    console.warn('Unable to load auth store, starting fresh.', err);
-  }
+function normalizeEmail(value = '') {
+  return String(value).trim().toLowerCase();
 }
 
-function persistStore() {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(cache, null, 2));
+export async function initAuthStore() {
+  const db = await getDb();
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS auth_credentials (
+      email TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      password TEXT NOT NULL DEFAULT '',
+      password_hash TEXT NOT NULL DEFAULT '',
+      password_salt TEXT NOT NULL DEFAULT '',
+      provider TEXT NOT NULL DEFAULT 'local',
+      google_sub TEXT,
+      username TEXT NOT NULL DEFAULT '',
+      birth_date TEXT NOT NULL DEFAULT '',
+      gender TEXT NOT NULL DEFAULT '',
+      password_updated_at TEXT,
+      verified_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS auth_verifications (
+      email TEXT PRIMARY KEY,
+      password TEXT NOT NULL DEFAULT '',
+      password_hash TEXT NOT NULL DEFAULT '',
+      password_salt TEXT NOT NULL DEFAULT '',
+      code_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      first_name TEXT NOT NULL DEFAULT '',
+      last_name TEXT NOT NULL DEFAULT '',
+      username TEXT NOT NULL DEFAULT '',
+      birth_date TEXT NOT NULL DEFAULT '',
+      gender TEXT NOT NULL DEFAULT '',
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS auth_password_resets (
+      email TEXT PRIMARY KEY,
+      token_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      used_at TEXT
+    );
+  `);
+
+  return true;
 }
 
-export function initAuthStore() {
-  ensureStore();
-  return cache;
+export async function getCredential(email) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) return null;
+
+  const db = await getDb();
+  const row = await db.get('SELECT * FROM auth_credentials WHERE email = ?', [normalizedEmail]);
+  if (!row) return null;
+
+  return {
+    userId: row.user_id,
+    password: row.password,
+    passwordHash: row.password_hash,
+    passwordSalt: row.password_salt,
+    provider: row.provider,
+    googleSub: row.google_sub,
+    username: row.username,
+    birthDate: row.birth_date,
+    gender: row.gender,
+    email: row.email,
+    passwordUpdatedAt: row.password_updated_at,
+    verifiedAt: row.verified_at
+  };
 }
 
-export function getCredential(email) {
-  return cache.credentials[email] || null;
-}
-
-export function getCredentialByUserId(userId) {
+export async function getCredentialByUserId(userId) {
   if (!userId) return null;
-  for (const credential of Object.values(cache.credentials)) {
-    if (credential?.userId === userId) {
-      return credential;
-    }
-  }
-  return null;
+
+  const db = await getDb();
+  const row = await db.get('SELECT * FROM auth_credentials WHERE user_id = ? LIMIT 1', [userId]);
+  if (!row) return null;
+
+  return {
+    userId: row.user_id,
+    password: row.password,
+    passwordHash: row.password_hash,
+    passwordSalt: row.password_salt,
+    provider: row.provider,
+    googleSub: row.google_sub,
+    username: row.username,
+    birthDate: row.birth_date,
+    gender: row.gender,
+    email: row.email,
+    passwordUpdatedAt: row.password_updated_at,
+    verifiedAt: row.verified_at
+  };
 }
 
-export function updateCredentialByUserId(userId, payload) {
+export async function updateCredentialByUserId(userId, payload) {
   if (!userId || !payload || typeof payload !== 'object') return null;
 
-  let currentEmailKey = null;
-  let currentCredential = null;
-  for (const [emailKey, credential] of Object.entries(cache.credentials)) {
-    if (credential?.userId === userId) {
-      currentEmailKey = emailKey;
-      currentCredential = credential;
-      break;
-    }
+  const current = await getCredentialByUserId(userId);
+  if (!current) return null;
+
+  const targetEmail = normalizeEmail(payload.email || current.email);
+  if (!targetEmail) {
+    throw new Error('Email is required');
   }
 
-  if (!currentEmailKey || !currentCredential) {
-    return null;
-  }
-
-  const targetEmail =
-    typeof payload.email === 'string' && payload.email.trim()
-      ? payload.email.trim()
-      : currentCredential.email || currentEmailKey;
-
-  const merged = {
-    ...currentCredential,
-    ...payload,
-    email: targetEmail
+  const next = {
+    userId,
+    password: typeof payload.password === 'string' ? payload.password : current.password || '',
+    passwordHash: typeof payload.passwordHash === 'string' ? payload.passwordHash : current.passwordHash || '',
+    passwordSalt: typeof payload.passwordSalt === 'string' ? payload.passwordSalt : current.passwordSalt || '',
+    provider: payload.provider || current.provider || 'local',
+    googleSub: payload.googleSub ?? current.googleSub ?? null,
+    username: typeof payload.username === 'string' ? payload.username : current.username || '',
+    birthDate: typeof payload.birthDate === 'string' ? payload.birthDate : current.birthDate || '',
+    gender: typeof payload.gender === 'string' ? payload.gender : current.gender || '',
+    email: targetEmail,
+    passwordUpdatedAt: payload.passwordUpdatedAt || current.passwordUpdatedAt || null,
+    verifiedAt: payload.verifiedAt || current.verifiedAt || new Date().toISOString()
   };
 
-  if (targetEmail !== currentEmailKey) {
-    delete cache.credentials[currentEmailKey];
-  }
-  cache.credentials[targetEmail] = merged;
-  persistStore();
-  return cache.credentials[targetEmail];
+  const db = await getDb();
+  await db.run('DELETE FROM auth_credentials WHERE user_id = ?', [userId]);
+  await db.run(
+    `INSERT INTO auth_credentials (
+      email, user_id, password, password_hash, password_salt, provider, google_sub,
+      username, birth_date, gender, password_updated_at, verified_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      next.email,
+      next.userId,
+      next.password,
+      next.passwordHash,
+      next.passwordSalt,
+      next.provider,
+      next.googleSub,
+      next.username,
+      next.birthDate,
+      next.gender,
+      next.passwordUpdatedAt,
+      next.verifiedAt
+    ]
+  );
+
+  return next;
 }
 
-export function saveCredential(email, payload) {
-  const existing = cache.credentials[email] || {};
-  cache.credentials[email] = {
+export async function saveCredential(email, payload) {
+  const normalizedEmail = normalizeEmail(email);
+  const existing = (await getCredential(normalizedEmail)) || {};
+
+  const next = {
     userId: payload.userId,
     password: typeof payload.password === 'string' ? payload.password : existing.password || '',
     passwordHash: typeof payload.passwordHash === 'string' ? payload.passwordHash : existing.passwordHash || '',
@@ -105,20 +164,94 @@ export function saveCredential(email, payload) {
     username: typeof payload.username === 'string' ? payload.username : existing.username || '',
     birthDate: typeof payload.birthDate === 'string' ? payload.birthDate : existing.birthDate || '',
     gender: typeof payload.gender === 'string' ? payload.gender : existing.gender || '',
-    email: typeof payload.email === 'string' ? payload.email : existing.email || email,
+    email: typeof payload.email === 'string' ? normalizeEmail(payload.email) : existing.email || normalizedEmail,
     passwordUpdatedAt: payload.passwordUpdatedAt || existing.passwordUpdatedAt || null,
     verifiedAt: payload.verifiedAt || existing.verifiedAt || new Date().toISOString()
   };
-  persistStore();
-  return cache.credentials[email];
+
+  const firstName = String(payload?.firstName || '').trim() || 'Unknown';
+  const lastName = String(payload?.lastName || '').trim() || 'Unknown';
+  const normalizedUserGender = String(next.gender || '').trim() || null;
+
+  await withTransaction(async (db) => {
+    await db.run(
+      `INSERT INTO auth_credentials (
+        email, user_id, password, password_hash, password_salt, provider, google_sub,
+        username, birth_date, gender, password_updated_at, verified_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(email) DO UPDATE SET
+        user_id = excluded.user_id,
+        password = excluded.password,
+        password_hash = excluded.password_hash,
+        password_salt = excluded.password_salt,
+        provider = excluded.provider,
+        google_sub = excluded.google_sub,
+        username = excluded.username,
+        birth_date = excluded.birth_date,
+        gender = excluded.gender,
+        password_updated_at = excluded.password_updated_at,
+        verified_at = excluded.verified_at`,
+      [
+        next.email,
+        next.userId,
+        next.password,
+        next.passwordHash,
+        next.passwordSalt,
+        next.provider,
+        next.googleSub,
+        next.username,
+        next.birthDate,
+        next.gender,
+        next.passwordUpdatedAt,
+        next.verifiedAt
+      ]
+    );
+
+    await db.run(
+      `INSERT INTO users (
+        user_id, first_name, last_name, gender,
+        R_score, I_score, A_score, S_score, E_score, C_score,
+        riasec_profile, chosen_major, satisfaction_score
+      ) VALUES (?, ?, ?, ?, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL)
+      ON CONFLICT (user_id) DO UPDATE SET
+        first_name = excluded.first_name,
+        last_name = excluded.last_name,
+        gender = COALESCE(excluded.gender, users.gender)`,
+      [next.userId, firstName, lastName, normalizedUserGender]
+    );
+  });
+
+  return next;
 }
 
-export function getVerification(email) {
-  return cache.verifications[email] || null;
+export async function getVerification(email) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) return null;
+
+  const db = await getDb();
+  const row = await db.get('SELECT * FROM auth_verifications WHERE email = ?', [normalizedEmail]);
+  if (!row) return null;
+
+  return {
+    password: row.password,
+    passwordHash: row.password_hash,
+    passwordSalt: row.password_salt,
+    codeHash: row.code_hash,
+    expiresAt: row.expires_at,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    username: row.username,
+    birthDate: row.birth_date,
+    gender: row.gender,
+    email: row.email,
+    attemptCount: row.attempt_count,
+    createdAt: row.created_at
+  };
 }
 
-export function saveVerification(email, payload) {
-  cache.verifications[email] = {
+export async function saveVerification(email, payload) {
+  const normalizedEmail = normalizeEmail(email);
+  const next = {
     password: payload.password || '',
     passwordHash: payload.passwordHash || '',
     passwordSalt: payload.passwordSalt || '',
@@ -129,47 +262,105 @@ export function saveVerification(email, payload) {
     username: payload.username || '',
     birthDate: payload.birthDate || '',
     gender: payload.gender || '',
-    email: payload.email || email,
-    attemptCount: payload.attemptCount ?? 0,
+    email: payload.email ? normalizeEmail(payload.email) : normalizedEmail,
+    attemptCount: Number.isInteger(payload.attemptCount) ? payload.attemptCount : 0,
     createdAt: payload.createdAt || new Date().toISOString()
   };
-  persistStore();
-  return cache.verifications[email];
+
+  const db = await getDb();
+  await db.run(
+    `INSERT INTO auth_verifications (
+      email, password, password_hash, password_salt, code_hash, expires_at,
+      first_name, last_name, username, birth_date, gender, attempt_count, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(email) DO UPDATE SET
+      password = excluded.password,
+      password_hash = excluded.password_hash,
+      password_salt = excluded.password_salt,
+      code_hash = excluded.code_hash,
+      expires_at = excluded.expires_at,
+      first_name = excluded.first_name,
+      last_name = excluded.last_name,
+      username = excluded.username,
+      birth_date = excluded.birth_date,
+      gender = excluded.gender,
+      attempt_count = excluded.attempt_count,
+      created_at = excluded.created_at`,
+    [
+      next.email,
+      next.password,
+      next.passwordHash,
+      next.passwordSalt,
+      next.codeHash,
+      next.expiresAt,
+      next.firstName,
+      next.lastName,
+      next.username,
+      next.birthDate,
+      next.gender,
+      next.attemptCount,
+      next.createdAt
+    ]
+  );
+
+  return next;
 }
 
-export function incrementVerificationAttempt(email) {
-  const current = cache.verifications[email];
-  if (!current) return null;
-  current.attemptCount = (current.attemptCount || 0) + 1;
-  persistStore();
-  return current;
+export async function incrementVerificationAttempt(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const db = await getDb();
+  await db.run('UPDATE auth_verifications SET attempt_count = attempt_count + 1 WHERE email = ?', [normalizedEmail]);
+  return getVerification(normalizedEmail);
 }
 
-export function clearVerification(email) {
-  if (cache.verifications[email]) {
-    delete cache.verifications[email];
-    persistStore();
-  }
+export async function clearVerification(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const db = await getDb();
+  await db.run('DELETE FROM auth_verifications WHERE email = ?', [normalizedEmail]);
 }
 
-export function getPasswordReset(email) {
-  return cache.passwordResets[email] || null;
+export async function getPasswordReset(email) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) return null;
+
+  const db = await getDb();
+  const row = await db.get('SELECT * FROM auth_password_resets WHERE email = ?', [normalizedEmail]);
+  if (!row) return null;
+
+  return {
+    tokenHash: row.token_hash,
+    expiresAt: row.expires_at,
+    createdAt: row.created_at,
+    usedAt: row.used_at
+  };
 }
 
-export function savePasswordReset(email, payload) {
-  cache.passwordResets[email] = {
+export async function savePasswordReset(email, payload) {
+  const normalizedEmail = normalizeEmail(email);
+  const next = {
     tokenHash: payload.tokenHash,
     expiresAt: payload.expiresAt,
     createdAt: payload.createdAt || new Date().toISOString(),
     usedAt: payload.usedAt || null
   };
-  persistStore();
-  return cache.passwordResets[email];
+
+  const db = await getDb();
+  await db.run(
+    `INSERT INTO auth_password_resets (email, token_hash, expires_at, created_at, used_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(email) DO UPDATE SET
+       token_hash = excluded.token_hash,
+       expires_at = excluded.expires_at,
+       created_at = excluded.created_at,
+       used_at = excluded.used_at`,
+    [normalizedEmail, next.tokenHash, next.expiresAt, next.createdAt, next.usedAt]
+  );
+
+  return next;
 }
 
-export function clearPasswordReset(email) {
-  if (cache.passwordResets[email]) {
-    delete cache.passwordResets[email];
-    persistStore();
-  }
+export async function clearPasswordReset(email) {
+  const normalizedEmail = normalizeEmail(email);
+  const db = await getDb();
+  await db.run('DELETE FROM auth_password_resets WHERE email = ?', [normalizedEmail]);
 }

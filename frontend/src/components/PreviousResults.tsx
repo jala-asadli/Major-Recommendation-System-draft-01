@@ -33,7 +33,7 @@ export const PreviousResults = ({ userName, results, onRefresh, onSignOut }: Pre
     }
   };
 
-  const displayItems = results.slice(0, 5);
+  const displayItems = results;
 
   return (
     <section className="quiz-shell">
@@ -62,16 +62,19 @@ export const PreviousResults = ({ userName, results, onRefresh, onSignOut }: Pre
         ) : (
           <ul className="previous-results-list">
             {displayItems.map((item) => {
-              const topPick = item.recommendations?.[0];
+              const topMatch = item.topMatch || item.recommendations?.[0]?.major || '-';
+              const topScore = item.recommendations?.[0]?.score;
+              const chosenForItem = typeof item.chosenMajor === 'string' && item.chosenMajor.trim() ? item.chosenMajor.trim() : '-';
               return (
-                <li key={item.id}>
+                <li key={item.id || `${item.createdAt}-${item.profile}`}>
                   <div>
                     <strong>{item.profile}</strong>
                     <span>{formatDate(item.createdAt)}</span>
                   </div>
                   <div>
-                    <p>{topPick ? `Top match: ${topPick.major}` : 'No recommendations stored.'}</p>
-                    {topPick && <span className="score-value">Score: {topPick.score.toFixed(3)}</span>}
+                    <p>Top match: {topMatch}</p>
+                    <p>Chosen major: {chosenForItem}</p>
+                    <span className="score-value">Score: {typeof topScore === 'number' ? topScore.toFixed(3) : '-'}</span>
                   </div>
                 </li>
               );
